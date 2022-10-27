@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
@@ -159,7 +160,6 @@ public class SendTx {
     }
 
     String filePathParam = System.getProperty("filePath");
-    filePath = null;
     if (StringUtils.isNoneEmpty(filePathParam)) {
       filePath = filePathParam;
     }
@@ -192,6 +192,7 @@ public class SendTx {
       logger.info("maxRows must >= qps !");
       System.exit(0);
     }
+    logger.info("init params: fullNodes: {}, thread: {}, filePath: {}, batchNum: {}, maxTime: {}, maxRows: {}, scheduled: {}", Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled);
   }
 
   public static void start() {

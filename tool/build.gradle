@@ -144,7 +144,7 @@ createScript(project, 'org.tron.stress.Stress', 'java-tron-tool')
 def releaseBinary = hasProperty('binaryRelease') ? getProperty('binaryRelease') : 'true'
 if (releaseBinary == 'true') {
     artifacts {
-        archives(binaryRelease('buildSolidityNodeJar', 'SolidityNode', 'org.tron.program.SolidityNode'),
+        archives(
                 binaryRelease('buildJavaTronTool', 'Stress', 'org.tron.stress.Stress')
         )
     }
