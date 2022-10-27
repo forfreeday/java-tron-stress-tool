@@ -53,6 +53,7 @@ public class SendTx {
   public void initGRPC(String[] fullNodes) {
     for (String fullNode : fullNodes) {
       //construct grpc stub
+      logger.info("init grpc fullNode ip: {}", fullNode);
       ManagedChannel channelFull = ManagedChannelBuilder.forTarget(fullNode)
               .usePlaintext(true).build();
       WalletGrpc.WalletBlockingStub blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
@@ -214,10 +215,9 @@ public class SendTx {
     return duration.toMillis() / 1000;
   }
 
-//
-//  //for test
-//  public static void main(String[] args) {
-//    maxRows = 100000;
-//    start();
-//  }
+
+  //for test
+  public static void main(String[] args) {
+    start();
+  }
 }
