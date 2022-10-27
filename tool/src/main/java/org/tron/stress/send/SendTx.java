@@ -15,7 +15,6 @@ import java.io.InputStreamReader;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -192,7 +191,8 @@ public class SendTx {
       logger.info("maxRows must >= qps !");
       System.exit(0);
     }
-    logger.info("init params: fullNodes: {}, thread: {}, filePath: {}, batchNum: {}, maxTime: {}, maxRows: {}, scheduled: {}", Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled);
+    logger.info("init params: fullNodes: {}, thread: {}, filePath: {}, batchNum: {}, maxTime: {}, maxRows: {}, scheduled: {}",
+            Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled);
   }
 
   public static void start() {
@@ -211,11 +211,9 @@ public class SendTx {
   }
 
   private static long duration(LocalDateTime now, LocalDateTime lastTime) {
-
     Duration duration = Duration.between(now, lastTime);
     return duration.toMillis() / 1000;
   }
-
 
   //for test
   public static void main(String[] args) {
