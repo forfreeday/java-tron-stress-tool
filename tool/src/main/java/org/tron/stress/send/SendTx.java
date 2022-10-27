@@ -12,6 +12,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -26,42 +30,48 @@ import java.util.concurrent.TimeUnit;
 public class SendTx {
 
   private ExecutorService broadcastExecutorService;
-  ScheduledExecutorService scheduledExecutorService;
+  private ScheduledExecutorService scheduledExecutorService;
   private List<WalletGrpc.WalletBlockingStub> blockingStubFullList = new ArrayList<>();
-  private int onceSendTxNum; //batch send num once
-  private int maxRows; //max read rows from file
+  private static int batchNum = 100; //batch send num once
+  private static int maxRows; //max read rows from file
   private static boolean isScheduled = false;
   private static String[] fullNodes;
-  private static int broadcastThreadNum;
-  private static int batch;
-  private static int rows;
+  private static int broadcastThreadNum = 1;
   private static String filePath;
+  private static int maxTime;
 
-  public SendTx(String[] fullNodes, int broadcastThreadNum, int onceSendTxNum, int maxRows) {
+  public SendTx(String[] fullNodes, int broadcastThreadNum) {
+    initExecutors(broadcastThreadNum);
+    initGRPC(fullNodes);
+  }
+
+  public void initExecutors(int broadcastThreadNum) {
     broadcastExecutorService = Executors.newFixedThreadPool(broadcastThreadNum);
     scheduledExecutorService = Executors.newScheduledThreadPool(broadcastThreadNum);
+  }
+
+  public void initGRPC(String[] fullNodes) {
     for (String fullNode : fullNodes) {
       //construct grpc stub
       ManagedChannel channelFull = ManagedChannelBuilder.forTarget(fullNode)
-          .usePlaintext(true).build();
+              .usePlaintext(true).build();
       WalletGrpc.WalletBlockingStub blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
       blockingStubFullList.add(blockingStubFull);
-      this.onceSendTxNum = onceSendTxNum;
-      this.maxRows = maxRows;
+
     }
   }
 
   private void sendTxByScheduled(List<Transaction> list) {
     Random random = new Random();
     list.forEach(transaction -> {
-      scheduledExecutorService.schedule(()-> {
+      scheduledExecutorService.schedule(() -> {
         int index = random.nextInt(blockingStubFullList.size());
         blockingStubFullList.get(index).broadcastTransaction(transaction);
-      },1, TimeUnit.SECONDS);
+      }, 1, TimeUnit.SECONDS);
     });
   }
 
-  private void send(List<Transaction> list){
+  private void send(List<Transaction> list) {
     Random random = new Random();
     List<Future<Boolean>> futureList = new ArrayList<>(list.size());
     list.forEach(transaction -> {
@@ -90,26 +100,29 @@ public class SendTx {
   }
 
   private void readTxAndSend(String path) {
-    File file = new File(path);
     logger.info("[Begin] send tx");
     try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(new FileInputStream(file)))) {
-      String line = reader.readLine();
+            new InputStreamReader(new FileInputStream(new File(path))))) {
+      LocalDateTime lastTime = LocalDateTime.now().plus(maxTime, ChronoUnit.SECONDS);
       List<Transaction> lineList = new ArrayList<>();
       int count = 0;
+      String line = reader.readLine();
       while (line != null) {
-        try {
-          lineList.add(Transaction.parseFrom(Hex.decode(line)));
-          count += 1;
-          if (count > maxRows) {
-            break;
-          }
-          if (count % onceSendTxNum == 0) {
-            sendTx(lineList);
-            lineList.clear();
-            logger.info("Send tx num = " + count);
-          }
-        } catch (Exception e) {
+        lineList.add(Transaction.parseFrom(Hex.decode(line)));
+        count += 1;
+        if (count > maxRows) {
+          logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
+          break;
+        }
+
+        if (duration(LocalDateTime.now(), lastTime) <= 0) {
+          logger.info("maximum execution time reached, exit execution, maxTime: {}", maxTime);
+          break;
+        }
+        if (count % batchNum == 0) {
+          sendTx(lineList);
+          lineList.clear();
+          logger.info("Send tx num = " + count);
         }
         line = reader.readLine();
       }
@@ -120,6 +133,13 @@ public class SendTx {
       }
     } catch (Exception e) {
       e.printStackTrace();
+    } finally {
+      if (null != broadcastExecutorService) {
+        broadcastExecutorService.shutdown();
+      }
+      if (null != scheduledExecutorService) {
+        scheduledExecutorService.shutdown();
+      }
     }
     logger.info("[Final] send tx end");
   }
@@ -133,7 +153,6 @@ public class SendTx {
     }
 
     String broadcastThreadParam = System.getProperty("thread");
-    broadcastThreadNum = 1;
     if (StringUtils.isNoneEmpty(broadcastThreadParam)) {
       broadcastThreadNum = Integer.parseInt(broadcastThreadParam);
     }
@@ -144,16 +163,23 @@ public class SendTx {
       filePath = filePathParam;
     }
 
-    String batchParam = System.getProperty("batch");
-    batch = 0;
-    if (StringUtils.isNoneEmpty(batchParam)) {
-      batch = Integer.parseInt(batchParam);
+    String qpsParam = System.getProperty("qps");
+    if (StringUtils.isNoneEmpty(qpsParam)) {
+      batchNum = Integer.parseInt(qpsParam);
+    }
+    String maxTimeParam = System.getProperty("maxTime");
+    if (StringUtils.isNoneEmpty(maxTimeParam)) {
+      maxTime = Integer.parseInt(maxTimeParam);
     }
 
     String maxRowsParam = System.getProperty("maxRows");
-    rows = -1;
     if (StringUtils.isNoneEmpty(maxRowsParam)) {
-      rows = Integer.parseInt(maxRowsParam);
+      maxRows= Integer.parseInt(maxRowsParam);
+      if (maxRows < 0) {
+        maxRows = Integer.MAX_VALUE;
+      }
+    } else {
+      maxRows = Integer.MAX_VALUE;
     }
 
     String scheduledParam = System.getProperty("scheduled");
@@ -161,21 +187,15 @@ public class SendTx {
       isScheduled = true;
     }
 
-//    if (args.length > 4) {
-//      maxRows = Integer.parseInt(args[4]);
-//    }
-    if (rows < 0) {
-      rows = Integer.MAX_VALUE;
-    }
-    if (batch > rows) {
-      System.out.println("maxRows must >= onceSendTxNum !");
+    if (batchNum > maxRows) {
+      logger.info("maxRows must >= qps !");
       System.exit(0);
     }
   }
 
   public static void start() {
     init();
-    SendTx sendTx = new SendTx(fullNodes, broadcastThreadNum, batch, rows);
+    SendTx sendTx = new SendTx(fullNodes, broadcastThreadNum);
     int isMultiFile = filePath.indexOf(";");
     if (isMultiFile != -1) {
       String[] filePaths = filePath.split(";");
@@ -187,4 +207,17 @@ public class SendTx {
       sendTx.readTxAndSend(filePath);
     }
   }
+
+  private static long duration(LocalDateTime now, LocalDateTime lastTime) {
+
+    Duration duration = Duration.between(now, lastTime);
+    return duration.toMillis() / 1000;
+  }
+
+//
+//  //for test
+//  public static void main(String[] args) {
+//    maxRows = 100000;
+//    start();
+//  }
 }

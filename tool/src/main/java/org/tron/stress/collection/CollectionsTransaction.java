@@ -34,13 +34,13 @@ public class CollectionsTransaction {
   private static final String defaultFileName = "transaction.txt";
 
   // https://developers.tron.network/docs/trongrid
-  // public static String fullNode = "grpc.trongrid.io:50051";
-  public static String fullNode = "47.252.35.194:50051";
+   public static String fullNode = "grpc.trongrid.io:50051";
+//  public static String fullNode = "47.252.35.194:50051";
   public static String solidityNode = "grpc.trongrid.io:50052";
 
   public static String fileName = null;
-  public static int startBlockNum = 434377520;
-  public static int endBlockNum = startBlockNum + 1000;
+  public static int startBlockNum = 43421000;
+  public static int endBlockNum = startBlockNum + 100;
 
   public static void main(String[] args) {
     init();
@@ -69,7 +69,7 @@ public class CollectionsTransaction {
 
     String file = System.getProperty("fileName");
 //    for test
-//    file = "/Users/liukai/workspaces/temp/fullnode/transaction.txt";
+    file = "/Users/liukai/workspaces/temp/fullnode/transaction.txt";
     if (StringUtils.isNoneEmpty(file)) {
       if (!file.contains(".")) {
         file = File.separator + defaultFileName;
@@ -97,6 +97,7 @@ public class CollectionsTransaction {
          BufferedWriter writer = new BufferedWriter(outputStreamWriter)) {
       for (int i = startBlockNum; i < endBlockNum; i = i + step) {
         Optional<GrpcAPI.BlockList> result = client.getBlockByLimitNext(i, i + step);
+//        Protocol.Block block = client.getBlock(43421000);
         if (!result.isPresent()) {
           continue;
         }

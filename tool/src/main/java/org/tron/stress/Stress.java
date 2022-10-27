@@ -7,8 +7,6 @@ import org.tron.stress.generate.GenerateTransaction;
 import org.tron.stress.send.SendTx;
 import org.tron.stress.split.SplitTransaction;
 
-import java.io.IOException;
-
 /**
  * Stress entrance
  * @author liukai
