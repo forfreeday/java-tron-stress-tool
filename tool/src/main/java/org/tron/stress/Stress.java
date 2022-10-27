@@ -27,8 +27,10 @@ public class Stress {
         GenerateTransaction.start();
       }  else if (typeParam.equals("sendTx")) {
         SendTx.start();
-      } else if (StringUtils.isNoneEmpty(typeParam)) {
+      } else if (typeParam.equals("split")) {
         SplitTransaction.start();
+      } else if (typeParam.equals("init")) {
+
       }
     }
   }

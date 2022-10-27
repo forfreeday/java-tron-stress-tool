@@ -176,7 +176,6 @@ public class SendTx {
   public static void start() {
     init();
     SendTx sendTx = new SendTx(fullNodes, broadcastThreadNum, batch, rows);
-
     int isMultiFile = filePath.indexOf(";");
     if (isMultiFile != -1) {
       String[] filePaths = filePath.split(";");

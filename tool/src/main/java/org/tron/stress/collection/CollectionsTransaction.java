@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
+ * CollectionsTransaction
+ *  Collection of designated network transactions
  * @author liukai
  * @since 2022/9/8.
  */
@@ -30,10 +32,6 @@ public class CollectionsTransaction {
   public static AtomicInteger triggerSmartContractCount = new AtomicInteger();
   public static AtomicInteger transferAssetContractCount = new AtomicInteger();
   private static final String defaultFileName = "transaction.txt";
-
-  private static FileOutputStream fileOutputStream = null;
-  private static OutputStreamWriter outputStreamWriter = null;
-  private static BufferedWriter writer = null;
 
   // https://developers.tron.network/docs/trongrid
   // public static String fullNode = "grpc.trongrid.io:50051";
@@ -71,7 +69,7 @@ public class CollectionsTransaction {
 
     String file = System.getProperty("fileName");
 //    for test
-    file = "/Users/liukai/workspaces/temp/fullnode/transaction.txt";
+//    file = "/Users/liukai/workspaces/temp/fullnode/transaction.txt";
     if (StringUtils.isNoneEmpty(file)) {
       if (!file.contains(".")) {
         file = File.separator + defaultFileName;
@@ -86,13 +84,6 @@ public class CollectionsTransaction {
       CollectionsTransaction.fullNode = fullNode;
     }
 
-    try {
-      fileOutputStream = new FileOutputStream(new File(fileName), true);
-      outputStreamWriter = new OutputStreamWriter(fileOutputStream);
-      writer = new BufferedWriter(outputStreamWriter);
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    }
   }
 
   private static void fetchTransaction(GrpcClient client, String fileName, int startBlockNum, int endBlockNum) {
@@ -100,32 +91,38 @@ public class CollectionsTransaction {
     int step = 10;
     int count = 0;
     int filterCount = 0;
-    for (int i = startBlockNum; i < endBlockNum; i = i + step) {
-      Optional<GrpcAPI.BlockList> result = client.getBlockByLimitNext(i, i + step);
-      if (!result.isPresent()) {
-        continue;
+
+    try (FileOutputStream fileOutputStream = new FileOutputStream(new File(fileName), true);
+         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fileOutputStream);
+         BufferedWriter writer = new BufferedWriter(outputStreamWriter)) {
+      for (int i = startBlockNum; i < endBlockNum; i = i + step) {
+        Optional<GrpcAPI.BlockList> result = client.getBlockByLimitNext(i, i + step);
+        if (!result.isPresent()) {
+          continue;
+        }
+        // 提取所有类型交易
+        collectionTransaction(result.get(), transactions);
+        // 写入文件
+        // 满 100000 先写入一批，防止 List 太大
+        if (transactions.size() >= 100000) {
+          count = count + transactions.size();
+          transactions = filterTransaction(transactions);
+          filterCount = filterCount + transactions.size();
+          writeToFile(writer, fileName, transactions);
+        }
+        logger.info("已提取块：{} -- {} 块的交易!, 笔数: {}", i, i + step, transactions.size());
       }
-      // 提取所有类型交易
-      collectionTransaction(result.get(), transactions);
-      // 写入文件
-      // 满 100000 先写入一批，防止 List 太大
-      if (transactions.size() >= 100000) {
+
+      if (transactions.size() < 100000) {
         count = count + transactions.size();
         transactions = filterTransaction(transactions);
-        filterCount = filterCount + transactions.size();
-        writeToFile(fileName, transactions);
+        count = count + transactions.size();
+        writeToFile(writer, fileName, transactions);
+        logger.info("总共获取交易笔数：{}, 过滤有效交易笔数: {}", count, filterCount);
       }
-      logger.info("已提取块：{} -- {} 块的交易!, 笔数: {}", i, i + step, transactions.size());
+    } catch (IOException e) {
+      e.printStackTrace();
     }
-
-    if (transactions.size() < 100000) {
-      count = count + transactions.size();
-      transactions = filterTransaction(transactions);
-      count = count + transactions.size();
-      writeToFile(fileName, transactions);
-      logger.info("总共获取交易笔数：{}, 过滤有效交易笔数: {}", count, filterCount);
-    }
-    closeIO();
   }
 
   public static void collectionTransaction(GrpcAPI.BlockList blockList, List<Transaction> transactions) {
@@ -242,7 +239,7 @@ public class CollectionsTransaction {
     return Hex.toHexString(trx.toByteArray());
   }
 
-  private static void writeToFile(String fileName, List<Transaction> transactions) {
+  private static void writeToFile(BufferedWriter writer, String fileName, List<Transaction> transactions) {
     long startTime = System.currentTimeMillis();
     logger.info("开始向文件1写入交易数据，请稍后...");
     transactions.parallelStream().forEachOrdered(trx -> {
@@ -256,22 +253,6 @@ public class CollectionsTransaction {
     logger.info("交易数据写入文件完成，文件名称：" + fileName);
     logger.info("写入文件花费" + (System.currentTimeMillis() - startTime) + "ms");
     transactions.clear();
-  }
-
-  private static void closeIO() {
-    try {
-      if (writer != null) {
-        writer.close();
-      }
-      if (outputStreamWriter != null) {
-        outputStreamWriter.close();
-      }
-      if (fileOutputStream != null) {
-        fileOutputStream.close();
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
   }
 
 }

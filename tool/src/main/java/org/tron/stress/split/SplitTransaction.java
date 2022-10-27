@@ -10,10 +10,10 @@ import org.tron.protos.contract.SmartContractOuterClass;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * SplitTransaction
@@ -28,11 +28,16 @@ public class SplitTransaction {
   private static String TRANSACTION_DIR = null;
   private static String TRANSACTION_NAME = null;
 
-  private static String PREFIX = "split.txt";
+  private static AtomicInteger transferCount = new AtomicInteger(0);
+  private static AtomicInteger trc10Count = new AtomicInteger(0);
+  private static AtomicInteger trc20Count = new AtomicInteger(0);
+
+  private static String PREFIX = "split_result";
+  private static String SUFFIX = ".txt";
+
   private static String TRX_TYPE = null;
 
-  public static void init() throws FileNotFoundException {
-
+  public static void init() {
     String trxTypeParam = System.getProperty("trxType");
     if (StringUtils.isNoneEmpty(trxTypeParam)) {
       TRX_TYPE = trxTypeParam;
@@ -56,6 +61,7 @@ public class SplitTransaction {
     } else {
       TRANSACTION_NAME = "transactions.txt";
     }
+    logger.info("init params, trxType: {}, splitDir: {}, trxDir: {}, trxFileName: {}", TRX_TYPE, SPLIT_DIR, TRANSACTION_DIR, TRANSACTION_NAME);
   }
 
   public static void split() throws IOException {
@@ -75,7 +81,7 @@ public class SplitTransaction {
         switch (contractType) {
           case TransferContract:
             splitTransfer.write(line + "\n");
-            logger.info("trx type: TransferContract");
+            count(transferCount, "TransferContract");
             if (count % 10000 == 0) {
               logger.info("trx type: TransferContract, flush, count: {}", count);
               flush(splitTransfer);
@@ -83,7 +89,7 @@ public class SplitTransaction {
             break;
           case TransferAssetContract:
             splitTRC10.write(line + "\n");
-            logger.info("trx type: TransferAssetContract");
+            count(trc10Count, "TransferAssetContract");
             if (count % 10000 == 0) {
               logger.info("trx type: TransferAssetContract, flush, count: {}", count);
               flush(splitTRC10);
@@ -97,7 +103,7 @@ public class SplitTransaction {
                     .equalsIgnoreCase("41A614F803B6FD780986A42C78EC9C7F77E6DED13C")) {
               splitTRC20.write(line + "\n");
             }
-            logger.info("trx type: splitTRC20");
+            count(trc20Count, "TriggerSmartContract");
             if (count % 10000 == 0) {
               logger.info("trx type: splitTRC20, flush, count: {}", count);
               flush(splitTRC20);
@@ -106,28 +112,24 @@ public class SplitTransaction {
           default:
             break;
         }
-        count += 1;
+        count++ ;
         if (count % 10000 == 0) {
-          logger.info("count: {}", count);
+          logger.info("current transaction count: {}", count);
           splitTransfer.flush();
           splitTRC10.flush();
           splitTRC20.flush();
         }
         line = reader.readLine();
       }
-
       splitTransfer.flush();
       splitTRC10.flush();
       splitTRC20.flush();
-
-      reader.close();
-      splitTransfer.close();
-      splitTRC10.close();
-      splitTRC20.close();
     } catch (Exception e) {
       logger.error("split exception, count: {}, message: {}", count, e.getMessage(), e);
     }
   }
+
+
 
   public static void flush(FileWriter fileWriter) {
     try {
@@ -135,6 +137,10 @@ public class SplitTransaction {
     } catch (IOException e) {
       e.printStackTrace();
     }
+  }
+
+  public static void count (AtomicInteger count, String trxType) {
+    logger.info("transaction type: {}, current count: {}", trxType, count.incrementAndGet());
   }
 
   public static void start() {
