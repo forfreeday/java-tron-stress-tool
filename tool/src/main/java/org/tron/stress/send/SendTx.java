@@ -39,6 +39,8 @@ public class SendTx {
   private static int broadcastThreadNum = 1;
   private static String filePath;
   private static int maxTime;
+  private static Integer startNum;
+  private static int endNum=500;
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
     initExecutors(broadcastThreadNum);
@@ -109,6 +111,15 @@ public class SendTx {
       int count = 0;
       String line = reader.readLine();
       while (line != null) {
+        if (startNum != null && startNum > 0) {
+          if (count <= startNum) {
+            if (count % 10000 == 0) {
+              logger.info("skip transaction, concurrent num: {}", count);
+            }
+            continue;
+          }
+        }
+
         lineList.add(Transaction.parseFrom(Hex.decode(line)));
         count += 1;
         if (count > maxRows) {
@@ -181,6 +192,16 @@ public class SendTx {
     } else {
       maxRows = Integer.MAX_VALUE;
     }
+
+    String startNumParam = System.getProperty("startNum");
+    if (StringUtils.isNoneEmpty(startNumParam)) {
+      startNum = Integer.parseInt(startNumParam);
+    }
+    String endNumParam = System.getProperty("endNum");
+    if (StringUtils.isNoneEmpty(endNumParam)) {
+      endNum = Integer.parseInt(endNumParam);
+    }
+
 
     String scheduledParam = System.getProperty("scheduled");
     if (StringUtils.isNoneEmpty(scheduledParam)) {

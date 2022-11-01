@@ -11,6 +11,9 @@ maxTime=3600
 # transaction type
 type=sendTx
 
+startNum=0
+endNum=2000000
+
 nohup java -Xms5G -Xmx5G -XX:ReservedCodeCacheSize=256m -XX:MetaspaceSize=256m \
  -XX:MaxMetaspaceSize=512m -XX:MaxDirectMemorySize=1G  \
  -XX:+UseConcMarkSweepGC -XX:NewRatio=2 -XX:+CMSScavengeBeforeRemark -XX:+ParallelRefProcEnabled \
