@@ -109,13 +109,17 @@ public class SendTx {
       LocalDateTime lastTime = LocalDateTime.now().plus(maxTime, ChronoUnit.SECONDS);
       List<Transaction> lineList = new ArrayList<>();
       int count = 0;
+      int concurrentLine=0;
       String line = reader.readLine();
       while (line != null) {
         if (startNum != null && startNum > 0) {
-          if (count <= startNum) {
-            if (count % 10000 == 0) {
-              logger.info("skip transaction, concurrent num: {}", count);
+          if (concurrentLine <= startNum) {
+            if (concurrentLine % 10000 == 0) {
+              logger.info("skip transaction, concurrent num: {}", concurrentLine);
             }
+            // skip line
+            line = reader.readLine();
+            concurrentLine++;
             continue;
           }
         }
