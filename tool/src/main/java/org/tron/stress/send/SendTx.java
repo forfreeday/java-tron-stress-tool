@@ -39,7 +39,7 @@ public class SendTx {
   private static int broadcastThreadNum = 1;
   private static String filePath;
   private static int maxTime;
-  private static Integer startNum;
+  private static Integer startNum=0;
   private static int endNum=500;
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
