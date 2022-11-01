@@ -114,12 +114,10 @@ public class SendTx {
       while (line != null) {
         if (startNum != null && startNum > 0) {
           if (concurrentLine <= startNum) {
-            if (concurrentLine % 10000 == 0) {
-              logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, concurrentLine);
-            }
             // skip line
             line = reader.readLine();
             concurrentLine++;
+            logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, concurrentLine);
             continue;
           }
         }
