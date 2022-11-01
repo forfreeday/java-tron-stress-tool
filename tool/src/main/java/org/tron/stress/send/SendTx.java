@@ -119,8 +119,6 @@ public class SendTx {
             }
             // skip line
             line = reader.readLine();
-
-            logger.info("concurrentLine: {}", concurrentLine++);
             continue;
           }
         }
