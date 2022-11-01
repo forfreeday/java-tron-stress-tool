@@ -212,8 +212,8 @@ public class SendTx {
       logger.info("maxRows must >= qps !");
       System.exit(0);
     }
-    logger.info("init params: fullNodes: {}, thread: {}, filePath: {}, batchNum: {}, maxTime: {}, maxRows: {}, scheduled: {}",
-            Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled);
+    logger.info("init params: fullNodes: {}, thread: {}, filePath: {}, batchNum: {}, maxTime: {}, maxRows: {}, scheduled: {}, startNum: {}, endNum: {}",
+            Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled, startNum, endNum);
   }
 
   public static void start() {
