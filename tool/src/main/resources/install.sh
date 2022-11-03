@@ -11,5 +11,5 @@ download() {
   fi
 }
 
-download "https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/tron-deploy.sh" /usr/bin/tron-deploy
+download "https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/tron-deploy.sh" /usr/bin/
 chmod +x /usr/bin/tron-deploy
