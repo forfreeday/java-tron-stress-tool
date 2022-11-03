@@ -3,13 +3,17 @@
 download() {
   local url=$1
   if type wget >/dev/null 2>&1; then
-    wget -P $2 --no-check-certificate -q $url
+    sudo wget -P $2 --no-check-certificate -q $url
   elif type curl >/dev/null 2>&1; then
-    curl -o $2 -OLJ $url
+    sudo curl -o $2 -OLJ $url
   else
     echo 'info: no exists wget or curl, make sure the system can use the "wget" or "curl" command'
   fi
 }
 
+user=`whoami`
+group=`groups`
 download "https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/tron-deploy.sh" /usr/bin/
-chmod +x /usr/bin/tron-deploy
+sudo mv /usr/bin/tron-deploy.sh /usr/bin/tron-deploy
+sudo chmod +x /usr/bin/tron-deploy
+sudo chown $user:$groups /usr/bin/tron-deploy
