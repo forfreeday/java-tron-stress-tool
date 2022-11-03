@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+if [ -f  /usr/bin/tron-deploy ];then
+  sudo rm -rf /usr/bin/tron-deploy
+fi
 download() {
   local url=$1
   if type wget >/dev/null 2>&1; then
