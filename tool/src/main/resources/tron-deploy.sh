@@ -37,8 +37,6 @@ isSendFullNode=false
 # 重启远程FullNode节点
 isRestartFullNode=false
 fullnodeNet=(
-10.40.100.140
-10.40.100.141
 )
 
 # [数据库]
