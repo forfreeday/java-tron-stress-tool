@@ -2,23 +2,23 @@
 #set -e
 #set -x
 # [github]
-isInit=false
+
 repositoryUrl='https://github.com/tronprotocol/java-tron.git'
 branch='build_pri_chain'
 isCloneCode=false
 isPullCode=false
 # 代码构建
-isBuildProject=false
+isBuildCode=false
 
 # 是否覆盖配置文件
 isOverrideConfig=false
 
 # [工作目录]
 # 本地java-tron目录
-workspace=~/tronbuild/
-javaTronDir="${workspace}"/java-tron/
-localConfigDir="${workspace}"/config/
-deployConfigDir="${localConfigDir}"/deploy
+workspace=/data/tron-build/
+javaTronDir="${workspace}/java-tron/"
+localConfigDir="${workspace}/config/"
+deployConfigDir="${localConfigDir}/deploy"
 
 # [远程工作目录]
 # 目标机器java-tron目录
@@ -29,8 +29,6 @@ remoteProjectDIR=/data/test-deploy
 isSendWitness=false
 isSendAll=false
 witnessNet=(
-10.40.100.112
-30.40.100.112
 )
 
 # [FullNode节点]
@@ -39,7 +37,8 @@ isSendFullNode=false
 # 重启远程FullNode节点
 isRestartFullNode=false
 fullnodeNet=(
-20.40.100.112
+10.40.100.140
+10.40.100.141
 )
 
 # [数据库]
@@ -47,21 +46,39 @@ fullnodeNet=(
 isSendNewDatabase=false
 # 本地数据库存放目录
 isUseLocalDatabase=false
-localDatabaseDir="/data/database"
+localDatabaseDir="${workspace}/database"
+
+
+
+
+
+
+
+
+
+
+
 
 ###############################################[节点控制]###################################################
 # [节点控制]
+isInit=false
+
 # 启动
 isStart=false
 isStop=false
 controlType=''
 controlNodes=''
 # 重启远程SR节点
-isRestartSR=false
+isRestartWitness=false
 # 重启SR、FullNode
 isRestartAll=false
 # 获取节点消息
 nodeInfos=''
+
+# int
+localCommandPath='/usr/bin/'
+localCommand='tron-deploy'
+localShell='tron-deploy.sh'
 
 ###############################################[构建部分]###################################################
 
@@ -78,7 +95,7 @@ pullCode() {
   git pull
 }
 
-buildProject() {
+buildCode() {
   if [ -d "$javaTronDir" ]; then
     echo "[info] build code, current branch: " $branch
     cd $javaTronDir || { echo "Failure"; exit 1; }
@@ -95,8 +112,7 @@ setLocalwitness() {
 
 # 创建默认配置文件，在 init 时触发
 createConfigFile() {
-   deploFilePath='/usr/bin/tron-deploy'
-   configFile=$(sed -n "3, 60p" "$deploFilePath")
+   configFile=$(sed -n "3, 60p" "$localCommandPath/$localCommand")
    if [ ! -d $localConfigDir ]; then
       mkdir -p $localConfigDir
    fi
@@ -128,20 +144,28 @@ download() {
   fi
 }
 
-
 # init java-tron tool
-init() {
+initTool() {
    echo "[info] init java-tron test tool"
    # 清空旧代码目录
    if [ -d "$workspace" ]; then
        rm -rf $workspace
    fi
+   mkdir -p $workspace
+   mkdir -p $localDatabaseDir
+   sudo cp "$localShell" "$localCommandPath/$localCommand"
+   sudo chmod +x "$localCommandPath/$localCommand"
+   sudo chown
 
    createConfigFile
 
-#  #setLocalwitness
-#  must send database, config
-   isOverrideConfig=true
+   # clone project
+   isCloneCode=true
+   isBuildCode=true
+
+   #  #setLocalwitness
+   #  must send database, config
+   isOverrideConfig=false
    isSendNewDatabase=false
 }
 
@@ -226,9 +250,11 @@ sendFullNode() {
     {
     ssh -p 22008 java-tron@$node "mkdir -p $remoteProjectDIR"
     # stop
-    ssh -p 22008 java-tron@$node "source ~/.bash_profile; sh $remoteProjectDIR/stop.sh \
-       && mkdir -p $remoteProjectDIR/liteDatabase/output-directory \
-       && cd $remoteProjectDIR && rm -rf FullNode.jar
+    ssh -p 22008 java-tron@$node "source ~/.bash_profile; \
+       sh $remoteProjectDIR/stop.sh; \
+       mkdir -p $remoteProjectDIR/liteDatabase/output-directory; \
+       cd $remoteProjectDIR;
+       rm -rf FullNode.jar
        "
 
     # 推送 FullNode.jar
@@ -361,6 +387,17 @@ EOF
     wait
 }
 
+checkFirstSend() {
+  # 首次构建，推送配置文件、数据
+  if [[ ! -f "$deployConfigDir/first.lock" ]]; then
+      echo "[info] first send node"
+      touch $deployConfigDir/first.lock
+      isOverrideConfig=true
+      isSendNewDatabase=true
+  fi
+}
+
+
 getNodeInfo() {
   echo "get node info"
 }
@@ -369,23 +406,7 @@ help() {
   echo "help!"
 }
 
-# 重启远程SR节点
-#   1.停服
-#   2.清库、复制数据库
-#   3.重启
-restartSR() {
-  echo "[info] restart witness!"
-  restartFn "${witnessNet[@]}"
-}
 
-# 重启远程FullNode节点
-#   1.停服
-#   2.清库、复制数据库
-#   3.重启
-restartFullNode() {
-  echo "[info] restart FullNode"
-  restartFn "${fullnodeNet[@]}"
-}
 
 restartFn() {
   local nodes=("$@")
@@ -403,9 +424,9 @@ restartFn() {
     # backup log
     mv $remoteProjectDIR/logs/tron.log $remoteProjectDIR/logs/$backup_logname
         # 复制数据库
-        echo "node: $node: remote output-directory"
+        echo "[info] remote $node output-directory"
         rm -rf $remoteProjectDIR/output-directory/
-        echo "node: $node copy output-directory"
+        echo "[info] copy $node output-directory"
         cp -r $remoteProjectDIR/liteDatabase/output-directory/ $remoteProjectDIR
         # restart java-tron
         sh $remoteProjectDIR/start.sh
@@ -427,8 +448,8 @@ initParam() {
   fi
 
    # load config
-   if [[ -f "$worksapce$config.conf" ]]; then
-     echo "load config: $worksapce$config.conf"
+   if [[ -f "$workspace$config.conf" ]]; then
+     echo "load config: $workspace$config.conf"
      source $localConfigDir/config.conf
    fi
 
@@ -489,12 +510,12 @@ initParam() {
        branch=$2
        shift 2
        ;;
-     --buildProject)
-       isBuildProject=true
+     --buildCode)
+       isBuildCode=true
        shift 1
        ;;
      -bp)
-       isBuildProject=true
+       isBuildCode=true
        shift 1
        ;;
      --overrideConfig)
@@ -517,12 +538,14 @@ initParam() {
      --restartSR)
        isSendWitness=false
        isSendFullNode=false
-       isRestartSR=true
+       isRestartWitness=true
+       isRestartFullNode=false
        shift 1
        ;;
      --restartFullNode)
        isSendWitness=false
        isSendFullNode=false
+       isRestartWitness=false
        isRestartFullNode=true
        shift 1
        ;;
@@ -576,7 +599,7 @@ initParam() {
 run() {
   if [[ "$isInit" = true ]]; then
     echo '[info] init'
-    init
+    initTool
   fi
 
   # 克隆代码
@@ -584,42 +607,37 @@ run() {
     echo '[info] clone code'
     cloneCode
   fi
-  
+
   # 拉取代码
   if [[ "$isPullCode" = true ]]; then
     echo '[info] pull code'
     pullCode
   fi
 
-  # 首次构建，推送配置文件、数据
-  if [[ ! -f "$deployConfigDir/first.tmp" ]]; then
-      echo "[info] first build"
-      touch $deployConfigDir/first.tmp
-      isOverrideConfig=true
-      isSendNewDatabase=true
+  # 编译 jar 包
+  if [[ "$isBuildCode" = true ]]; then
+    echo '[info] build java-tron'
+    buildCode
   fi
 
-  # 编译 jar 包
-  if [[ "$isBuildProject" = true ]]; then
-    echo '[info] build java-tron'
-    buildProject
-  fi
-  
-  # 发送 SR and FullNode 节点
-  if [[ "$isSendAll" = true ]]; then
-    sendWitnessNode
-    sendFullNode
-  fi
-  
   # 发送 SR 节点
   if [[ "$isSendWitness" = true ]]; then
     echo "[info] send sr node!"
+    checkFirstSend
     sendWitnessNode
   fi
-  
+
   # 构建FullNode
   if [[ "$isSendFullNode" = true ]]; then
     echo "[info] send full node!"
+    checkFirstSend
+    sendFullNode
+  fi
+
+  # 发送 SR and FullNode 节点
+  if [[ "$isSendAll" = true ]]; then
+    checkFirstSend
+    sendWitnessNode
     sendFullNode
   fi
 
@@ -644,22 +662,28 @@ run() {
   fi
 
   # 重启远程SR节点
-  if [[ "$isRestartSR" = true ]]; then
+  #   1.停服
+  #   2.清库、复制数据库
+  #   3.重启
+  if [[ "$isRestartWitness" = true ]]; then
     echo "[info] restart witness!"
-    restartSR
+    restartFn "${witnessNet[@]}"
   fi
-  
+
   # 重启远程FullNode节点
+  #   1.停服
+  #   2.清库、复制数据库
+  #   3.重启
   if [[ "$isRestartFullNode" = true ]]; then
-    echo "[info] restart FullNode!"
-    restartFullNode
+    echo "[info] restart FullNode"
+    restartFn "${fullnodeNet[@]}"
   fi
-  
+
   # 重启SR、FullNode
   if [[ "$isRestartAll" = true ]]; then
     echo "[info] restart all!"
-    restartSR
-    restartFullNode
+    allNode=("${witnessNet[@]} ${fullnodeNet[@]}")
+    restartFn "${allNode[@]}"
   fi
 }
 
