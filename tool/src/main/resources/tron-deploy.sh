@@ -29,6 +29,8 @@ remoteProjectDIR=/data/test-deploy
 isSendWitness=false
 isSendAll=false
 witnessNet=(
+10.40.100.140
+10.40.100.141
 )
 
 # [FullNode节点]
@@ -77,6 +79,7 @@ nodeInfos=''
 localCommandPath='/usr/bin/'
 localCommand='tron-deploy'
 localShell='tron-deploy.sh'
+isPrintHelp=false
 
 ###############################################[构建部分]###################################################
 
@@ -110,11 +113,15 @@ setLocalwitness() {
 
 # 创建默认配置文件，在 init 时触发
 createConfigFile() {
-   configFile=$(sed -n "3, 60p" "$localCommandPath/$localCommand")
+   configFile=$(sed -n "1, 60p" "$localCommandPath/$localCommand")
    if [ ! -d $localConfigDir ]; then
       mkdir -p $localConfigDir
    fi
+   # 替换变量为实际值
    echo "$configFile" > $localConfigDir/deployment.conf
+   sed -i '19,20s#${workspace}#/data/tron-build/#' $localConfigDir/deployment.conf
+   sed -i '21s#${localConfigDir}#/data/tron-build/config/#' $localConfigDir/deployment.conf
+   sed -i '49s#${workspace}#/data/tron-build/database#' $localConfigDir/deployment.conf
 
    if [ ! -d $deployConfigDir ]; then
       mkdir -p $deployConfigDir/sr
@@ -151,9 +158,13 @@ initTool() {
    fi
    mkdir -p $workspace
    mkdir -p $localDatabaseDir
-   sudo cp "$localShell" "$localCommandPath/$localCommand"
+   #echo "localShell: $localShell"
+   #sudo cp "$localShell" "$localCommandPath/$localCommand"
    sudo chmod +x "$localCommandPath/$localCommand"
-   sudo chown
+   user=`whoami`
+   group=`groups`
+   echo "-----> ${user}:${group}"
+   sudo chown "${user}:${group}" $localCommandPath/$localCommand
 
    createConfigFile
 
@@ -165,6 +176,8 @@ initTool() {
    #  must send database, config
    isOverrideConfig=false
    isSendNewDatabase=false
+   echo ''
+   echo "[info] workspace: $workspace"
 }
 
 # 推送 SR 的java-tron代码、配置文件 到指定机器节点
@@ -174,13 +187,11 @@ initTool() {
 #   stop.sh
 #   config.conf -> config-stress.conf
 sendWitnessNode() {
-
   cd $workspace || { echo "Failure"; exit 1; }
   cp $javaTronDir/build/libs/FullNode.jar .
 
   for node in "${witnessNet[@]}"; do
-    {
-    ssh -p 22008 java-tron@$node "mkdir -p $remoteProjectDIR"
+  {
     # stop
     ssh -p 22008 java-tron@$node "source ~/.bash_profile; sh $remoteProjectDIR/stop.sh; sleep 4"
 
@@ -216,9 +227,9 @@ sendWitnessNode() {
     # start
     echo "[info] start java-tron"
     ssh -p 22008 java-tron@$node "cd $remoteProjectDIR && sh start.sh"
-   }&
-   done
-   wait
+  }&
+  done
+  wait
 
   # 并发发送数据库
   if [ "$isSendNewDatabase" = true ]; then
@@ -260,7 +271,7 @@ sendFullNode() {
     # config.conf 通过配置文件
     if [[ "$isOverrideConfig" = true ]]; then
        echo "[info] send config.conf"
-       scp -P 22008 $deployConfigDir/fullnode/config.conf_$node java-tron@$node:$remoteProjectDIR/config-stress.conf
+       scp -P 22008 $deployConfigDir/fullnode/config.conf java-tron@$node:$remoteProjectDIR/config-stress.conf
     fi
     scp -P 22008 $deployConfigDir/fullnode/start.sh java-tron@$node:$remoteProjectDIR/start.sh
     scp -P 22008 $deployConfigDir/fullnode/stop.sh java-tron@$node:$remoteProjectDIR/stop.sh
@@ -389,9 +400,16 @@ checkFirstSend() {
   # 首次构建，推送配置文件、数据
   if [[ ! -f "$deployConfigDir/first.lock" ]]; then
       echo "[info] first send node"
+      local nodes=("$@")
+      for node in "${nodes[@]}"; do
+      {
+         ip a
+         ssh -p 22008 java-tron@$node "mkdir -p $remoteProjectDIR"
+      }&
+      done
+      wait
       touch $deployConfigDir/first.lock
       isOverrideConfig=true
-      isSendNewDatabase=true
   fi
 }
 
@@ -445,9 +463,9 @@ initParam() {
       mkdir -p $workspace
   fi
 
-   # load config
-   if [[ -f "$workspace$config.conf" ]]; then
-     echo "load config: $workspace$config.conf"
+   # load local config
+   if [[ -f "$workspace/$config.conf" ]]; then
+     echo "load config: $workspace/$config.conf"
      source $localConfigDir/config.conf
    fi
 
@@ -581,6 +599,7 @@ initParam() {
        shift 1
        ;;
      -h)
+       isPrintHelp=true
        shift 1
        ;;
      *)
@@ -591,8 +610,6 @@ initParam() {
   done
 
 }
-
-
 
 run() {
   if [[ "$isInit" = true ]]; then
@@ -621,20 +638,21 @@ run() {
   # 发送 SR 节点
   if [[ "$isSendWitness" = true ]]; then
     echo "[info] send sr node!"
-    checkFirstSend
+    checkFirstSend ${witnessNet[@]}
     sendWitnessNode
   fi
 
   # 构建FullNode
   if [[ "$isSendFullNode" = true ]]; then
     echo "[info] send full node!"
-    checkFirstSend
+    checkFirstSend  ${fullnodeNet[@]}
     sendFullNode
   fi
 
   # 发送 SR and FullNode 节点
   if [[ "$isSendAll" = true ]]; then
-    checkFirstSend
+    allNode=("${witnessNet[@]} ${fullnodeNet[@]}")
+    checkFirstSend "${allNode[@]}"
     sendWitnessNode
     sendFullNode
   fi
@@ -682,6 +700,10 @@ run() {
     echo "[info] restart all!"
     allNode=("${witnessNet[@]} ${fullnodeNet[@]}")
     restartFn "${allNode[@]}"
+  fi
+
+  if [[ "$isPrintHelp" = true ]]; then
+    help
   fi
 }
 
