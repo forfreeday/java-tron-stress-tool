@@ -466,9 +466,7 @@ EOF
 
 # 部署节点
 deployNode() {
- echo '1'
-
-
+ echo '[info] deploy done'
 }
 
 initParam() {

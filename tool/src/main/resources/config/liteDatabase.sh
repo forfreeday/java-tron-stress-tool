@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 databaseDir=liteDatabase/
-IP="http://47.89.178.46/"
+IP="http://47.89.178.46"
 # example: http://47.89.178.46/backup20221117/
-date=``
+backupDate=`date +%Y%m%d --date="-1 day"`
+url="${IP}/backup${backupDate}/LiteFullNode_output-directory.tgz"
 # 下载轻节点数据
 download() {
   local url=$1
@@ -15,5 +16,5 @@ download() {
   fi
 }
 
-download "$url" "${databaseDir}LiteFullNode_output-directory.tgz"
+download "$url" "${databaseDir}"
 tar -zxvf LiteFullNode_output-directory.tgz
