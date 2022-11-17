@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #set -e
 #set -x
-# [github]
 
+# [github]
 repositoryUrl='https://github.com/tronprotocol/java-tron.git'
 branch='build_pri_chain'
 isCloneCode=false
@@ -15,7 +15,7 @@ isOverrideConfig=false
 
 # [工作目录]
 # 本地java-tron目录
-workspace=/data/tron-build/
+workspace=/data/tron-deploy/
 javaTronDir="${workspace}/java-tron/"
 localConfigDir="${workspace}/config/"
 deployConfigDir="${localConfigDir}/deploy"
@@ -29,8 +29,7 @@ remoteProjectDIR=/data/test-deploy
 isSendWitness=false
 isSendAll=false
 witnessNet=(
-10.40.100.140
-10.40.100.141
+
 )
 
 # [FullNode节点]
@@ -39,6 +38,7 @@ isSendFullNode=false
 # 重启远程FullNode节点
 isRestartFullNode=false
 fullnodeNet=(
+
 )
 
 # [数据库]
@@ -75,12 +75,20 @@ isRestartAll=false
 # 获取节点消息
 nodeInfos=''
 
-# int
+isDeploy=false
+
+# [命令存放路径]
 localCommandPath='/usr/bin/'
 localCommand='tron-deploy'
 localShell='tron-deploy.sh'
 isPrintHelp=false
 
+# [init 阶段入参]
+witnessNumber=5
+fullNodeNumber=2
+# , 号分格
+witnessIp=","
+fullNodeIp=","
 ###############################################[构建部分]###################################################
 
 cloneCode() {
@@ -90,8 +98,8 @@ cloneCode() {
 }
 
 pullCode() {
-  echo "[info] pull code"
-  cd $workspace || { echo "Failure"; exit 1; }
+  echo "[info] git pull"
+  cd $javaTronDir || { echo "Failure"; exit 1; }
   git branch -v
   git pull
 }
@@ -101,6 +109,7 @@ buildCode() {
     echo "[info] build code, current branch: " $branch
     cd $javaTronDir || { echo "Failure"; exit 1; }
     git reset
+    git branch -v
     git pull
     git checkout $branch
     ./gradlew clean build -x test -x check
@@ -116,12 +125,12 @@ createConfigFile() {
    configFile=$(sed -n "1, 60p" "$localCommandPath/$localCommand")
    if [ ! -d $localConfigDir ]; then
       mkdir -p $localConfigDir
+      # 替换变量为实际值
+      echo "$configFile" > $localConfigDir/deployment.conf
+      sed -i '19,20s#${workspace}#/data/tron-build/#' $localConfigDir/deployment.conf
+      sed -i '21s#${localConfigDir}#/data/tron-build/config/#' $localConfigDir/deployment.conf
+      sed -i '49s#${workspace}#/data/tron-build/database#' $localConfigDir/deployment.conf
    fi
-   # 替换变量为实际值
-   echo "$configFile" > $localConfigDir/deployment.conf
-   sed -i '19,20s#${workspace}#/data/tron-build/#' $localConfigDir/deployment.conf
-   sed -i '21s#${localConfigDir}#/data/tron-build/config/#' $localConfigDir/deployment.conf
-   sed -i '49s#${workspace}#/data/tron-build/database#' $localConfigDir/deployment.conf
 
    if [ ! -d $deployConfigDir ]; then
       mkdir -p $deployConfigDir/sr
@@ -130,11 +139,12 @@ createConfigFile() {
 
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/config-stress.conf $deployConfigDir/sr
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/start.sh $deployConfigDir/sr
-      download https://github.com/tronprotocol/java-tron/blob/build_pri_chain/framework/src/main/resources/deploy/sr/stop.sh $deployConfigDir/sr
+      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/stop.sh $deployConfigDir/sr
 
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/config-stress.conf $deployConfigDir/fullnode
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/start.sh $deployConfigDir/fullnode
-      download https://github.com/tronprotocol/java-tron/blob/build_pri_chain/framework/src/main/resources/deploy/fullnode/stop.sh $deployConfigDir/fullnode
+      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/stop.sh $deployConfigDir/fullnode
+
    fi
 }
 
@@ -160,11 +170,12 @@ initTool() {
    mkdir -p $localDatabaseDir
    #echo "localShell: $localShell"
    #sudo cp "$localShell" "$localCommandPath/$localCommand"
-   sudo chmod +x "$localCommandPath/$localCommand"
-   user=`whoami`
-   group=`groups`
-   echo "-----> ${user}:${group}"
-   sudo chown "${user}:${group}" $localCommandPath/$localCommand
+
+   if [ -f "$localCommandPath/$localCommand" ]; then
+      sudo chmod +x "$localCommandPath/$localCommand"
+      group=`groups`
+      sudo chown "${user}:${group}" $localCommandPath/$localCommand
+   fi
 
    createConfigFile
 
@@ -206,7 +217,8 @@ sendWitnessNode() {
     # 推送配置文件
     if [[ "$isOverrideConfig" = true ]]; then
        echo "[info] send config.conf"
-       scp -P 22008 $deployConfigDir/sr/config.conf_$node java-tron@$node:$remoteProjectDIR/config-stress.conf
+       #scp -P 22008 $deployConfigDir/sr/config.conf_$node java-tron@$node:$remoteProjectDIR/config-stress.conf
+       scp -P 22008 $deployConfigDir/sr/config-stress.conf_"${node}" java-tron@$node:$remoteProjectDIR/config-stress.conf
     fi
     scp -P 22008 $deployConfigDir/sr/start.sh java-tron@$node:$remoteProjectDIR/start.sh
     scp -P 22008 $deployConfigDir/sr/stop.sh java-tron@$node:$remoteProjectDIR/stop.sh
@@ -271,7 +283,7 @@ sendFullNode() {
     # config.conf 通过配置文件
     if [[ "$isOverrideConfig" = true ]]; then
        echo "[info] send config.conf"
-       scp -P 22008 $deployConfigDir/fullnode/config.conf java-tron@$node:$remoteProjectDIR/config-stress.conf
+       scp -P 22008 $deployConfigDir/fullnode/config-stress.conf java-tron@$node:$remoteProjectDIR/config-stress.conf
     fi
     scp -P 22008 $deployConfigDir/fullnode/start.sh java-tron@$node:$remoteProjectDIR/start.sh
     scp -P 22008 $deployConfigDir/fullnode/stop.sh java-tron@$node:$remoteProjectDIR/stop.sh
@@ -403,7 +415,6 @@ checkFirstSend() {
       local nodes=("$@")
       for node in "${nodes[@]}"; do
       {
-         ip a
          ssh -p 22008 java-tron@$node "mkdir -p $remoteProjectDIR"
       }&
       done
@@ -413,7 +424,6 @@ checkFirstSend() {
   fi
 }
 
-
 getNodeInfo() {
   echo "get node info"
 }
@@ -421,8 +431,6 @@ getNodeInfo() {
 help() {
   echo "help!"
 }
-
-
 
 restartFn() {
   local nodes=("$@")
@@ -435,6 +443,7 @@ restartFn() {
     ssh -p 22008 -Tq java-tron@"$node"<<"EOF"
         source ~/.bash_profile && cd $remoteProjectDIR
         # stop java-tron
+        echo "-------->" $remoteProjectDIR
     sh $remoteProjectDIR/stop.sh
     sleep 4
     # backup log
@@ -453,6 +462,13 @@ EOF
    }&
    done
    wait
+}
+
+# 部署节点
+deployNode() {
+ echo '1'
+
+
 }
 
 initParam() {
@@ -496,6 +512,24 @@ initParam() {
        isSendWitness=true
        isSendFullNode=false
        isSendAll=false
+       shift 1
+       ;;
+     --deploy)
+       isBuildCode=true
+       isDeploy=true
+       isRestartAll=true
+       if [ -z "$2" ];then
+         isSendWitness=false
+         isSendFullNode=false
+         isSendAll=true
+         isRestartAll=true
+         shift 1
+       else
+         shift 2
+       fi
+       ;;
+     -d)
+       isDeploy=true
        shift 1
        ;;
      --sendWitness)
@@ -637,7 +671,7 @@ run() {
 
   # 发送 SR 节点
   if [[ "$isSendWitness" = true ]]; then
-    echo "[info] send sr node!"
+    echo "[info] send witness node!"
     checkFirstSend ${witnessNet[@]}
     sendWitnessNode
   fi
@@ -702,6 +736,11 @@ run() {
     restartFn "${allNode[@]}"
   fi
 
+  if [[ "$isDeploy" = true ]]; then
+    echo "[info] deploy tron chain"
+    deployNode
+  fi
+
   if [[ "$isPrintHelp" = true ]]; then
     help
   fi
@@ -714,8 +753,10 @@ tron() {
 }
 
 if [ "${BASH_SOURCE[0]:-}" != "${0}" ]; then
+  cd ~
   export -f tron
 else
+  cd ~
   tron "${@}"
   exit $?
 fi
