@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #set -e
 #set -x
 
@@ -17,8 +17,11 @@ isOverrideConfig=false
 # 本地java-tron目录
 workspace=/data/tron-deploy/
 javaTronDir="${workspace}/java-tron/"
+# 配置文件目录
 localConfigDir="${workspace}/config/"
+# witness、fullNode 配置文件目录
 deployConfigDir="${localConfigDir}/deploy"
+deploymentConfig=${localConfigDir}/deployment.conf
 
 # [远程工作目录]
 # 目标机器java-tron目录
@@ -126,10 +129,10 @@ createConfigFile() {
    if [ ! -d $localConfigDir ]; then
       mkdir -p $localConfigDir
       # 替换变量为实际值
-      echo "$configFile" > $localConfigDir/deployment.conf
-      sed -i '19,20s#${workspace}#/data/tron-build/#' $localConfigDir/deployment.conf
-      sed -i '21s#${localConfigDir}#/data/tron-build/config/#' $localConfigDir/deployment.conf
-      sed -i '49s#${workspace}#/data/tron-build/database#' $localConfigDir/deployment.conf
+      echo "$configFile" > ${deploymentConfig}
+      sed -i '19,20s#${workspace}#/data/tron-build/#' ${deploymentConfig}
+      sed -i '21s#${localConfigDir}#/data/tron-build/config/#' ${deploymentConfig}
+      sed -i '49s#${workspace}#/data/tron-build/database#' ${deploymentConfig}
    fi
 
    if [ ! -d $deployConfigDir ]; then
@@ -177,6 +180,17 @@ initTool() {
       sudo chown "${user}:${group}" $localCommandPath/$localCommand
    fi
 
+   # 读取入参
+   read -p "number of witness nodes": witnessNumber
+   echo "witness nodes: " $witnessNumber
+
+   read -p "number of witness nodes": witnessNumber
+   echo "witness nodes: " $witnessNumber
+
+   read -p "Multiple IPs using ‘,’ number compartment": witnessIP
+   echo "witness nodes: " $witnessIP
+
+   eixt
    createConfigFile
 
    # clone project
@@ -349,7 +363,7 @@ startNodes() {
   for node in "${nodes[@]}"; do
      {
      echo "[info]: start node: $node"
-     ssh -p 22008 -Tq java-tron@"$node"<<"EOF"
+     ssh -p 22008 -Tq java-tron@"$node"<<EOF
          source ~/.bash_profile && cd $remoteProjectDIR
          # stop java-tron
      sh $remoteProjectDIR/stop.sh
@@ -370,7 +384,7 @@ stopNodes() {
   for node in "${nodes[@]}"; do
      {
      echo "[info]: stop node: $node"
-     ssh -p 22008 -Tq java-tron@"$node"<<"EOF"
+     ssh -p 22008 -Tq java-tron@"$node"<<EOF
          source ~/.bash_profile && cd $remoteProjectDIR
          # stop java-tron
      sh $remoteProjectDIR/stop.sh
@@ -395,7 +409,7 @@ nodeControl() {
   for node in "${nodes[@]}"; do
      {
      echo "[info]: stop node: $node"
-     ssh -p 22008 -Tq java-tron@"$node"<<"EOF"
+     ssh -p 22008 -Tq java-tron@"$node"<<EOF
          source ~/.bash_profile && cd $remoteProjectDIR
          # stop java-tron
      #sh $remoteProjectDIR/stop.sh
@@ -436,16 +450,17 @@ restartFn() {
   local nodes=("$@")
   for node in "${nodes[@]}"; do
     {
+    echo "--------" $remoteProjectDIR
     echo "[info]: restart node: $node"
     backup_logname=$(date +%Y%m%d%H%M%S)"_backup.log"
     #ssh -p 22008 java-tron@$node "mv $remoteProjectDIR/logs/tron.log $remoteProjectDIR/logs/$backup_logname"
     echo 'backup log name: ' "$backup_logname"
-    ssh -p 22008 -Tq java-tron@"$node"<<"EOF"
+    ssh -p 22008 -Tq java-tron@"$node"<<EOF
         source ~/.bash_profile && cd $remoteProjectDIR
         # stop java-tron
-        echo "-------->" $remoteProjectDIR
+        echo "---> remote workspace:" $remoteProjectDIR
     sh $remoteProjectDIR/stop.sh
-    sleep 4
+    sleep 10
     # backup log
     mv $remoteProjectDIR/logs/tron.log $remoteProjectDIR/logs/$backup_logname
         # 复制数据库
@@ -478,9 +493,11 @@ initParam() {
   fi
 
    # load local config
-   if [[ -f "$workspace/$config.conf" ]]; then
-     echo "load config: $workspace/$config.conf"
-     source $localConfigDir/config.conf
+   if [[ -f "${deploymentConfig}" ]]; then
+     echo "load config: ${deploymentConfig}"
+     source ${deploymentConfig}
+   else
+     echo "load config fail, ${deploymentConfig} not exists."
    fi
 
   # load config
@@ -555,6 +572,10 @@ initParam() {
        shift 1
        ;;
      --branch)
+       branch=$2
+       shift 2
+       ;;
+     -b)
        branch=$2
        shift 2
        ;;
@@ -730,7 +751,7 @@ run() {
   # 重启SR、FullNode
   if [[ "$isRestartAll" = true ]]; then
     echo "[info] restart all!"
-    allNode=("${witnessNet[@]} ${fullnodeNet[@]}")
+    allNode=(${witnessNet[@]} ${fullnodeNet[@]})
     restartFn "${allNode[@]}"
   fi
 
