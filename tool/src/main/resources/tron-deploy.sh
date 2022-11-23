@@ -142,12 +142,12 @@ createConfigFile() {
       # download sr config
 
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/config-stress.conf $deployConfigDir/sr
-      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/start.sh $deployConfigDir/sr
-      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/sr/stop.sh $deployConfigDir/sr
+      download https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/config/witness/start.sh $deployConfigDir/sr
+      download https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/config/witness/stop.sh $deployConfigDir/sr
 
       download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/config-stress.conf $deployConfigDir/fullnode
-      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/start.sh $deployConfigDir/fullnode
-      download https://raw.githubusercontent.com/tronprotocol/java-tron/build_pri_chain/framework/src/main/resources/deploy/fullnode/stop.sh $deployConfigDir/fullnode
+      download https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/config/fullnode/start.sh $deployConfigDir/fullnode
+      download https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/config/fullnode/stop.sh $deployConfigDir/fullnode
 
    fi
 }
@@ -521,7 +521,7 @@ restartFn() {
     ssh -p 22008 -Tq java-tron@"$node"<<EOF
         source ~/.bash_profile && cd $remoteProjectDIR
         # stop java-tron
-        echo "---> remote workspace:" $remoteProjectDIR
+        echo "[info] remote workspace:" $remoteProjectDIR
     sh $remoteProjectDIR/stop.sh
     sleep 10
     # backup log
