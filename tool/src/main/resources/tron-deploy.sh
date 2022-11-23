@@ -15,17 +15,25 @@ isOverrideConfig=false
 
 # [工作目录]
 # 本地java-tron目录
-workspace=/data/tron-deploy/
+workspace="/data/tron-deploy/"
 javaTronDir="${workspace}/java-tron/"
 # 配置文件目录
 localConfigDir="${workspace}/config/"
 # witness、fullNode 配置文件目录
 deployConfigDir="${localConfigDir}/deploy"
-deploymentConfig=${localConfigDir}/deployment.conf
+deploymentConfig="${localConfigDir}/deployment.conf"
 
 # [远程工作目录]
 # 目标机器java-tron目录
-remoteProjectDIR=/data/test-deploy
+remoteProjectDIR=/data/stress
+
+# [数据库]
+# 发送最新的数据库
+isSendNewDatabase=false
+# 本地数据库存放目录
+isUseLocalDatabase=false
+# 节点数据所在目录，所在目录必须包含 output-directory 目录
+localDatabaseDir="${workspace}/database/"
 
 # [SR节点]
 # 构建推送SR节点
@@ -43,14 +51,6 @@ isRestartFullNode=false
 fullnodeNet=(
 
 )
-
-# [数据库]
-# 发送最新的数据库
-isSendNewDatabase=false
-# 本地数据库存放目录
-isUseLocalDatabase=false
-localDatabaseDir="${workspace}/database"
-
 
 
 
@@ -125,14 +125,15 @@ setLocalwitness() {
 
 # 创建默认配置文件，在 init 时触发
 createConfigFile() {
-   configFile=$(sed -n "1, 60p" "$localCommandPath/$localCommand")
    if [ ! -d $localConfigDir ]; then
       mkdir -p $localConfigDir
       # 替换变量为实际值
+      #download https://raw.githubusercontent.com/forfreeday/java-tron-stress-tool/main/tool/src/main/resources/deployment.conf $deployConfigDir/
+      configFile=$(sed -n "1, 60p" "$localCommandPath/$localCommand")
       echo "$configFile" > ${deploymentConfig}
-      sed -i '19,20s#${workspace}#/data/tron-build/#' ${deploymentConfig}
-      sed -i '21s#${localConfigDir}#/data/tron-build/config/#' ${deploymentConfig}
-      sed -i '49s#${workspace}#/data/tron-build/database#' ${deploymentConfig}
+#      sed -i '19,21s#${workspace}#/data/tron-build/#' ${deploymentConfig}
+#      sed -i '23,24s#${localConfigDir}#/data/tron-build/config/#' ${deploymentConfig}
+#      sed -i '36s#${workspace}#/data/tron-build/database#' ${deploymentConfig}
    fi
 
    if [ ! -d $deployConfigDir ]; then
@@ -181,6 +182,8 @@ initTool() {
    fi
 
    # 读取入参
+
+
    read -p "number of witness nodes": witnessNumber
    echo "witness nodes: " $witnessNumber
 
@@ -205,6 +208,63 @@ initTool() {
    echo "[info] workspace: $workspace"
 }
 
+sendNodeFn() {
+  cd $workspace || { echo "Failure"; exit 1; }
+  cp $javaTronDir/build/libs/FullNode.jar .
+  local nodeType=$1
+
+  for node in "${witnessNet[@]}"; do
+  {
+    # stop
+    echo "[info] login: $node"
+    echo "---------------"
+    ssh -p 22008 java-tron@$node "source ~/.bash_profile; sh $remoteProjectDIR/stop.sh; sleep 4"
+
+    # delete old data
+    ssh -p 22008 java-tron@$node "cd $remoteProjectDIR; \
+        rm -rf output-directory; \
+        mkdir -p liteDatabase/output-directory; \
+        rm -rf FullNode.jar;"
+
+    # 推送 java-tron，必须进入到目录，tar 不支持全路径
+    tar -c FullNode.jar |pigz |ssh -p 22008 java-tron@$node "gzip -d|tar -xC $remoteProjectDIR"
+    # 推送配置文件
+    if [[ "$isOverrideConfig" = true ]]; then
+       echo "[info] send config.conf"
+       scp -P 22008 $deployConfigDir/$nodeType/config-stress.conf_"${node}" java-tron@$node:$remoteProjectDIR/config-stress.conf
+    fi
+    scp -P 22008 $deployConfigDir/$nodeType/start.sh java-tron@$node:$remoteProjectDIR/start.sh
+    scp -P 22008 $deployConfigDir/$nodeType/stop.sh java-tron@$node:$remoteProjectDIR/stop.sh
+    echo "[info] send FullNode.jar, start.sh, stop.sh to ${node} completed"
+    echo "[info] send witness: $node"
+    # backup log
+    backup_logname="`date +%Y%m%d%H%M%S`_backup.log"
+    ssh -p 22008 java-tron@$node "mv $remoteProjectDIR/logs/tron.log $remoteProjectDIR/logs/$backup_logname"
+    echo "[info] backup log name:  $backup_logname"
+
+    # 使用远程机器上的备份数据库
+    if [[ "$isUseLocalDatabase" = 'true' ]];then
+       echo "[info] copy output-directory to $node"
+       ssh -p 22008 java-tron@$node "cp -r $remoteProjectDIR/liteDatabase/output-directory/ $remoteProjectDIR"
+       echo "[info] copy database to $node completed"
+    fi
+
+    # start
+    echo "[info] start java-tron, node: $node"
+    ssh -p 22008 java-tron@$node "cd $remoteProjectDIR && sh start.sh"
+  }&
+  done
+  wait
+
+  # 并发发送数据库
+  if [ "$isSendNewDatabase" = true ]; then
+    echo "[info] send new database"
+    sendDatabaseByNodes "${witnessNet[@]}"
+    #ssh -p 22008 java-tron@$node "cp -r $remoteProjectDIR/liteDatabase/output-directory/ $remoteProjectDIR"
+    echo "[info] copy database completed"
+  fi
+}
+
 # 推送 SR 的java-tron代码、配置文件 到指定机器节点
 # 推送内容：
 #   FullNode.jar
@@ -218,6 +278,8 @@ sendWitnessNode() {
   for node in "${witnessNet[@]}"; do
   {
     # stop
+    echo "[info] login: $node"
+    echo "---------------"
     ssh -p 22008 java-tron@$node "source ~/.bash_profile; sh $remoteProjectDIR/stop.sh; sleep 4"
 
     # delete old data
@@ -226,7 +288,7 @@ sendWitnessNode() {
         mkdir -p liteDatabase/output-directory; \
         rm -rf FullNode.jar;"
 
-    # 推送 java-tron
+    # 推送 java-tron，必须进入到目录，tar 不支持全路径
     tar -c FullNode.jar |pigz |ssh -p 22008 java-tron@$node "gzip -d|tar -xC $remoteProjectDIR"
     # 推送配置文件
     if [[ "$isOverrideConfig" = true ]]; then
@@ -251,7 +313,7 @@ sendWitnessNode() {
     fi
 
     # start
-    echo "[info] start java-tron"
+    echo "[info] start java-tron, node: $node"
     ssh -p 22008 java-tron@$node "cd $remoteProjectDIR && sh start.sh"
   }&
   done
@@ -275,7 +337,8 @@ sendFullNode() {
 
   # 并发发送数据库
   if [ "$isSendNewDatabase" = true ]; then
-    echo "[info] send new database"
+    local blockNum=`cat liteDatabase/output-directory/database/info.properties|grep split_block_num|awk -F '=' '{print $2}'`
+    echo "[info] send new database, blockNum: $blockNum"
     sendDatabaseByNodes "${fullnodeNet[@]}"
     #ssh -p 22008 java-tron@$node "cp -r $remoteProjectDIR/liteDatabase/output-directory/ $remoteProjectDIR"
     echo "[info] copy database completed"
@@ -292,7 +355,7 @@ sendFullNode() {
        rm -rf FullNode.jar
        "
 
-    # 推送 FullNode.jar
+    # 推送 java-tron，必须进入到目录，tar 不支持全路径
     tar -c FullNode.jar |pigz |ssh -p 22008 java-tron@$node "gzip -d|tar -xC $remoteProjectDIR"
     # config.conf 通过配置文件
     if [[ "$isOverrideConfig" = true ]]; then
@@ -492,13 +555,13 @@ initParam() {
       mkdir -p $workspace
   fi
 
-   # load local config
-   if [[ -f "${deploymentConfig}" ]]; then
-     echo "load config: ${deploymentConfig}"
-     source ${deploymentConfig}
-   else
-     echo "load config fail, ${deploymentConfig} not exists."
-   fi
+  # load local config
+  if [[ -f "${deploymentConfig}" ]]; then
+    echo "[info] load config: ${deploymentConfig}, success."
+    source ${deploymentConfig}
+  else
+    echo "[info] load config fail, ${deploymentConfig} not exists."
+  fi
 
   # load config
   while [ -n "$1" ]; do
@@ -532,12 +595,15 @@ initParam() {
      --deploy)
        isBuildCode=true
        isDeploy=true
-       isRestartAll=true
+       isSendAll=true
        if [ -z "$2" ];then
-         isSendWitness=false
-         isSendFullNode=false
-         isSendAll=true
-         isRestartAll=true
+         if [[ "$2" =~ 'sr' ]];then
+          isSendWitness=true
+         elif [[ "$2" =~ 'fullNode' ]];then
+           isSendFullNode=true
+         else
+           isSendAll=true
+         fi
          shift 1
        else
          shift 2
@@ -601,7 +667,7 @@ initParam() {
        ;;
      --sendData)
        isSendNewDatabase=true
-       isSendAll=false
+       #isSendAll=false
        shift 1
        ;;
      --restartSR)
@@ -704,7 +770,7 @@ run() {
 
   # 发送 SR and FullNode 节点
   if [[ "$isSendAll" = true ]]; then
-    allNode=("${witnessNet[@]} ${fullnodeNet[@]}")
+    allNode=(${witnessNet[@]} ${fullnodeNet[@]})
     checkFirstSend "${allNode[@]}"
     sendWitnessNode
     sendFullNode
@@ -714,7 +780,7 @@ run() {
   if [[ "$isStart" = true ]]; then
     echo "[info] start nodes"
     if [ -z "$controlNodes" ];then
-      controlNodes=("${witnessNet[@]}" "${fullnodeNet[@]}")
+      controlNodes=(${witnessNet[@]}" "${fullnodeNet[@]})
     fi
     controlType='start'
     nodeControl "${controlNodes[@]}"
@@ -724,7 +790,7 @@ run() {
   if [[ "$isStop" = true ]]; then
     echo "[info] stop nodes"
     if [ -z "$controlNodes" ];then
-      controlNodes=("${witnessNet[@]}" "${fullnodeNet[@]}")
+      controlNodes=(${witnessNet[@]}" "${fullnodeNet[@]})
     fi
     controlType='stop'
     nodeControl "${controlNodes[@]}"
@@ -733,7 +799,7 @@ run() {
   # 重启远程SR节点
   #   1.停服
   #   2.清库、复制数据库
-  #   3.重启
+  #   3.启动
   if [[ "$isRestartWitness" = true ]]; then
     echo "[info] restart witness!"
     restartFn "${witnessNet[@]}"
@@ -742,7 +808,7 @@ run() {
   # 重启远程FullNode节点
   #   1.停服
   #   2.清库、复制数据库
-  #   3.重启
+  #   3.启动
   if [[ "$isRestartFullNode" = true ]]; then
     echo "[info] restart FullNode"
     restartFn "${fullnodeNet[@]}"
