@@ -84,13 +84,13 @@ public class SendTx {
         return true;
       }));
     });
-    futureList.forEach(ret -> {
-      try {
-        ret.get();
-      } catch (InterruptedException | ExecutionException e) {
-        e.printStackTrace();
-      }
-    });
+//    futureList.forEach(ret -> {
+//      try {
+//        ret.get();
+//      } catch (InterruptedException | ExecutionException e) {
+//        e.printStackTrace();
+//      }
+//    });
 
   }
 
@@ -133,16 +133,17 @@ public class SendTx {
           logger.info("maximum execution time reached, exit execution, maxTime: {}", maxTime);
           break;
         }
+        // batch 一批次读取后，发送
         if (count % batchNum == 0) {
           sendTx(lineList);
-          lineList.clear();
+          lineList = new ArrayList<>();
           logger.info("Send tx num = " + count);
         }
         line = reader.readLine();
       }
       if (!lineList.isEmpty()) {
         sendTx(lineList);
-        lineList.clear();
+
         logger.info("Send total tx num = " + count);
       }
     } catch (Exception e) {
