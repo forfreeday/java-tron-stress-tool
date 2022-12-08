@@ -124,7 +124,7 @@ public class SendTx {
 
         if (endNum != null && endNum > 0) {
           if (currentLineNumber == endNum) {
-            logger.info("end of reading, endNum: ", endNum);
+            logger.info("end of reading, endNum: {}", endNum);
           }
         }
 
