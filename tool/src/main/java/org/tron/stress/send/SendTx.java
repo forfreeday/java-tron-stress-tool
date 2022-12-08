@@ -39,8 +39,8 @@ public class SendTx {
   private static int broadcastThreadNum = 1;
   private static String filePath;
   private static int maxTime;
-  private static Integer startNum=0;
-  private static int endNum=500;
+  private static Integer startNum = 0;
+  private static Integer endNum = null;
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
     initExecutors(broadcastThreadNum);
@@ -109,16 +109,22 @@ public class SendTx {
       LocalDateTime lastTime = LocalDateTime.now().plus(maxTime, ChronoUnit.SECONDS);
       List<Transaction> lineList = new ArrayList<>();
       int count = 0;
-      int concurrentLine=0;
+      int currentLineNumber=0;
       String line = reader.readLine();
       while (line != null) {
         if (startNum != null && startNum > 0) {
-          if (concurrentLine <= startNum) {
+          if (currentLineNumber <= startNum) {
             // skip line
             line = reader.readLine();
-            concurrentLine++;
-            logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, concurrentLine);
+            currentLineNumber++;
+            logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, currentLineNumber);
             continue;
+          }
+        }
+
+        if (endNum != null && endNum > 0) {
+          if (currentLineNumber == endNum) {
+            logger.info("end of reading, endNum: ", endNum);
           }
         }
 
@@ -140,6 +146,7 @@ public class SendTx {
           logger.info("Send tx num = " + count);
         }
         line = reader.readLine();
+        currentLineNumber++;
       }
       if (!lineList.isEmpty()) {
         sendTx(lineList);
@@ -203,6 +210,10 @@ public class SendTx {
     String endNumParam = System.getProperty("endNum");
     if (StringUtils.isNoneEmpty(endNumParam)) {
       endNum = Integer.parseInt(endNumParam);
+      if (startNum >= endNum) {
+        logger.info("startNum Cannot be greater than or equal to endNumB, startNum: {}, endNum: {}", startNum, endNum);
+        System.exit(0);
+      }
     }
 
 
