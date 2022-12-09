@@ -19,8 +19,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +41,7 @@ public class SendTx {
   private static int maxTime;
   private static Integer startNum = 0;
   private static Integer endNum = null;
+  private BlockingQueue<Transaction> transactionQueue = new LinkedBlockingQueue<>();
   static Random random = new Random();
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
@@ -64,25 +67,37 @@ public class SendTx {
   }
 
   private void sendTxByScheduled(List<Transaction> list) {
-    Random random = new Random();
-    list.forEach(transaction -> {
-      scheduledExecutorService.schedule(() -> {
-        int index = random.nextInt(blockingStubFullList.size());
-        blockingStubFullList.get(index).broadcastTransaction(transaction);
-      }, 1, TimeUnit.SECONDS);
-    });
+//    Random random = new Random();
+//    list.forEach(transaction -> {
+//      scheduledExecutorService.schedule(() -> {
+//        int index = random.nextInt(blockingStubFullList.size());
+//        blockingStubFullList.get(index).broadcastTransaction(transaction);
+//      }, 1, TimeUnit.SECONDS);
+//    });
   }
 
 
   private void send(List<Transaction> list) {
-
-    list.forEach(transaction -> {
+    while (transactionQueue.size() >= batchNum) {
       broadcastExecutorService.execute(() -> {
         int index = random.nextInt(blockingStubFullList.size());
-        blockingStubFullList.get(index).broadcastTransaction(transaction);
+        try {
+          blockingStubFullList.get(index).broadcastTransaction(transactionQueue.take());
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
       });
-    });
+    }
   }
+//  private void send(List<Transaction> list) {
+//
+//    list.forEach(transaction -> {
+//      broadcastExecutorService.execute(() -> {
+//        int index = random.nextInt(blockingStubFullList.size());
+//        blockingStubFullList.get(index).broadcastTransaction(transaction);
+//      });
+//    });
+//  }
 
 //  private void send(List<Transaction> list) {
 //    Random random = new Random();
@@ -138,7 +153,8 @@ public class SendTx {
           }
         }
 
-        lineList.add(Transaction.parseFrom(Hex.decode(line)));
+//        lineList.add(Transaction.parseFrom(Hex.decode(line)));
+        transactionQueue.put(Transaction.parseFrom(Hex.decode(line)));
         count += 1;
         if (count > maxRows) {
           logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
@@ -153,7 +169,7 @@ public class SendTx {
         if (count % batchNum == 0) {
           LocalDateTime startTime = LocalDateTime.now();
           sendTx(lineList);
-          lineList.clear();
+          lineList = new ArrayList<>();
           Duration duration = Duration.between(startTime, LocalDateTime.now());
           logger.info("Send tx num = {}, duration = {}", count, (duration.toMillis() / 1000));
         }
@@ -161,10 +177,14 @@ public class SendTx {
         currentLineNumber++;
       }
 
-      if (!lineList.isEmpty()) {
+      if (transactionQueue.size() > 0) {
         sendTx(lineList);
         logger.info("Send total tx num = " + count);
       }
+//      if (!lineList.isEmpty()) {
+//        sendTx(lineList);
+//        logger.info("Send total tx num = " + count);
+//      }
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
