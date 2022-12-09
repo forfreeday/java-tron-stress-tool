@@ -90,13 +90,16 @@ public class SendTx {
 //    }
 //  }
   private void send(List<Transaction> list) {
-
-    list.forEach(transaction -> {
-      broadcastExecutorService.execute(() -> {
-        int index = random.nextInt(blockingStubFullList.size());
-        blockingStubFullList.get(index).broadcastTransaction(transaction);
-      });
-    });
+    list.parallelStream()
+            .map(transaction -> {
+              broadcastExecutorService.execute(() -> {
+                int index = random.nextInt(blockingStubFullList.size());
+                blockingStubFullList.get(index)
+                        .broadcastTransaction(transaction);
+              });
+              return transaction;
+            })
+            .count();
   }
 
 //  private void send(List<Transaction> list) {
