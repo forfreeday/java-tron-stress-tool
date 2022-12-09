@@ -42,7 +42,7 @@ last_second=$(tail -1 xx.log | awk '{print substr($1,0,2)*3600 + substr($1,4,2)*
 let "time_delta=$last_second-$first_second"
 echo "total_time_cost(seconds):" $time_delta
 
-maxPending=$(grep "pending tx size:" xx.log | awk -F":" '{print $5}' | sort -k 1nr | head -1)
+maxPending=$(grep "Pending tx size:" xx.log | awk -F":" '{print $5}' | sort -k 1nr | head -1)
 echo "maxPendingTxSize:" ${maxPending}
 
 #there may be some same block, only add once, so uniq for continue same
@@ -57,7 +57,7 @@ fi
 fork_num=$(grep "switch fork" xx.log | wc -l)
 echo "fork_num:" $fork_num
 
-grep "pushBlock block" xx.log | awk -F"/" 'BEGIN{max=0}{a=substr($2,5,4);count+=1;total+=a;if(a+0>max){max=a+0}}END{print total/count,max}' >tmp123.txt
+grep "PushBlock block" xx.log | awk -F"/" 'BEGIN{max=0}{a=substr($2,5,4);count+=1;total+=a;if(a+0>max){max=a+0}}END{print total/count,max}' >tmp123.txt
 avg_push_time=$(awk '{print $1}' tmp123.txt)
 max_push_time=$(awk '{print $2}' tmp123.txt)
 rm -rf tmp123.txt
@@ -98,3 +98,7 @@ max_tps: $max_tps
 generate_block_num: $generate_block_num
 missing_block_rate: $missing_block_rate
 "
+
+json="{\"text\":\"\`\`\`$alarm_data\`\`\`\"}"
+#echo $json
+curl -i -X POST -H "'Content-type':'application/json'" -d "$json" https://hooks.slack.com/services/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
