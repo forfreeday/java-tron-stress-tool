@@ -19,10 +19,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +39,7 @@ public class SendTx {
   private static int maxTime;
   private static Integer startNum = 0;
   private static Integer endNum = null;
+  static Random random = new Random();
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
     initExecutors(broadcastThreadNum);
@@ -74,25 +73,36 @@ public class SendTx {
     });
   }
 
+
   private void send(List<Transaction> list) {
-    Random random = new Random();
-    List<Future<Boolean>> futureList = new ArrayList<>(list.size());
+
     list.forEach(transaction -> {
-      futureList.add(broadcastExecutorService.submit(() -> {
+      broadcastExecutorService.execute(() -> {
         int index = random.nextInt(blockingStubFullList.size());
         blockingStubFullList.get(index).broadcastTransaction(transaction);
-        return true;
-      }));
+      });
     });
-//    futureList.forEach(ret -> {
-//      try {
-//        ret.get();
-//      } catch (InterruptedException | ExecutionException e) {
-//        e.printStackTrace();
-//      }
-//    });
-
   }
+
+//  private void send(List<Transaction> list) {
+//    Random random = new Random();
+//    List<Future<Boolean>> futureList = new ArrayList<>(list.size());
+//    list.forEach(transaction -> {
+//      futureList.add(broadcastExecutorService.submit(() -> {
+//        int index = random.nextInt(blockingStubFullList.size());
+//        blockingStubFullList.get(index).broadcastTransaction(transaction);
+//        return true;
+//      }));
+//    });
+////    futureList.forEach(ret -> {
+////      try {
+////        ret.get();
+////      } catch (InterruptedException | ExecutionException e) {
+////        e.printStackTrace();
+////      }
+////    });
+//
+//  }
 
   private void sendTx(List<Transaction> list) {
     if (isScheduled) {
@@ -141,16 +151,18 @@ public class SendTx {
         }
         // batch 一批次读取后，发送
         if (count % batchNum == 0) {
+          LocalDateTime startTime = LocalDateTime.now();
           sendTx(lineList);
-          lineList = new ArrayList<>();
-          logger.info("Send tx num = " + count);
+          lineList.clear();
+          Duration duration = Duration.between(startTime, LocalDateTime.now());
+          logger.info("Send tx num = {}, duration = {}", count, (duration.toMillis() / 1000));
         }
         line = reader.readLine();
         currentLineNumber++;
       }
+
       if (!lineList.isEmpty()) {
         sendTx(lineList);
-
         logger.info("Send total tx num = " + count);
       }
     } catch (Exception e) {
@@ -252,6 +264,10 @@ public class SendTx {
 
   //for test
   public static void main(String[] args) {
-    start();
+//    start();
+    LocalDateTime start = LocalDateTime.now();
+
+    Duration duration = Duration.between(start, LocalDateTime.now());
+    System.out.println(duration.toMillis() / 1000);
   }
 }
