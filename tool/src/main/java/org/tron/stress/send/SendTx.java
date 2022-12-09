@@ -77,27 +77,27 @@ public class SendTx {
   }
 
 
-  private void send(List<Transaction> list) {
-    while (transactionQueue.size() >= batchNum) {
-      broadcastExecutorService.execute(() -> {
-        int index = random.nextInt(blockingStubFullList.size());
-        try {
-          blockingStubFullList.get(index).broadcastTransaction(transactionQueue.take());
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-      });
-    }
-  }
 //  private void send(List<Transaction> list) {
-//
-//    list.forEach(transaction -> {
+//    while (transactionQueue.size() >= batchNum) {
 //      broadcastExecutorService.execute(() -> {
 //        int index = random.nextInt(blockingStubFullList.size());
-//        blockingStubFullList.get(index).broadcastTransaction(transaction);
+//        try {
+//          blockingStubFullList.get(index).broadcastTransaction(transactionQueue.take());
+//        } catch (InterruptedException e) {
+//          e.printStackTrace();
+//        }
 //      });
-//    });
+//    }
 //  }
+  private void send(List<Transaction> list) {
+
+    list.forEach(transaction -> {
+      broadcastExecutorService.execute(() -> {
+        int index = random.nextInt(blockingStubFullList.size());
+        blockingStubFullList.get(index).broadcastTransaction(transaction);
+      });
+    });
+  }
 
 //  private void send(List<Transaction> list) {
 //    Random random = new Random();
@@ -153,8 +153,8 @@ public class SendTx {
           }
         }
 
-//        lineList.add(Transaction.parseFrom(Hex.decode(line)));
-        transactionQueue.put(Transaction.parseFrom(Hex.decode(line)));
+        lineList.add(Transaction.parseFrom(Hex.decode(line)));
+//        transactionQueue.put(Transaction.parseFrom(Hex.decode(line)));
         count += 1;
         if (count > maxRows) {
           logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
@@ -177,14 +177,14 @@ public class SendTx {
         currentLineNumber++;
       }
 
-      if (transactionQueue.size() > 0) {
-        sendTx(lineList);
-        logger.info("Send total tx num = " + count);
-      }
-//      if (!lineList.isEmpty()) {
+//      if (transactionQueue.size() > 0) {
 //        sendTx(lineList);
 //        logger.info("Send total tx num = " + count);
 //      }
+      if (!lineList.isEmpty()) {
+        sendTx(lineList);
+        logger.info("Send total tx num = " + count);
+      }
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
