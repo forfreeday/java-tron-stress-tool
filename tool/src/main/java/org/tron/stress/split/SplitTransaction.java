@@ -69,14 +69,25 @@ public class SplitTransaction {
     FileWriter splitTransfer = new FileWriter(SPLIT_DIR + "trx_transfer.txt");
     FileWriter splitTRC10 = new FileWriter(SPLIT_DIR + "token10_transfer.txt");
     FileWriter splitTRC20 = new FileWriter(SPLIT_DIR + "usdt_transfer.txt");
+    FileWriter specifyType = new FileWriter(SPLIT_DIR + TRX_TYPE + ".txt");
+
     int count = 0;
     try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(transactionSource)))) {
       String line = reader.readLine();
       while (line != null) {
         Transaction tx = Transaction.parseFrom(Hex.decode(line));
         Transaction.Contract.ContractType contractType = tx.getRawData().getContract(0).getType();
-        if (TRX_TYPE != null && !contractType.getValueDescriptor().getName().equals(TRX_TYPE)) {
-          continue;
+        if (TRX_TYPE != null) {
+          if (!contractType.getValueDescriptor().getName().equals(TRX_TYPE)) {
+            continue;
+          }
+
+          specifyType.write(line + "\n");
+          count(transferCount, TRX_TYPE);
+          if (count % 10000 == 0) {
+            logger.info("trx type: {}, flush, count: {}", TRX_TYPE, count);
+            flush(specifyType);
+          }
         }
         switch (contractType) {
           case TransferContract:
