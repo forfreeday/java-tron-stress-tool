@@ -9,6 +9,7 @@ import org.tron.stress.split.SplitTransaction;
 
 /**
  * Stress entrance
+ *
  * @author liukai
  * @since 2022/10/26.
  */
@@ -23,9 +24,11 @@ public class Stress {
         CollectionsTransaction.start();
       } else if (typeParam.equals("generate")) {
         GenerateTransaction.start();
-      }  else if (typeParam.equals("sendTx")) {
-        SendTx.start();
+      } else if (typeParam.equals("sendTx")) {
+        new SendTx().start();
       } else if (typeParam.equals("split")) {
+        SplitTransaction.start();
+      } else if (typeParam.equals("broadcast")) {
         SplitTransaction.start();
       } else if (typeParam.equals("init")) {
 

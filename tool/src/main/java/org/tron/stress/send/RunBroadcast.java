@@ -14,6 +14,7 @@ import org.tron.core.net.message.TransactionMessage;
 import org.tron.core.services.RpcApiService;
 import org.tron.core.services.http.FullNodeHttpApiService;
 import org.tron.protos.Protocol;
+import org.tron.stress.StressService;
 
 import javax.annotation.Resource;
 import java.io.BufferedReader;
@@ -29,7 +30,7 @@ import java.time.temporal.ChronoUnit;
  * @since 2022/12/19.
  */
 @Slf4j
-public class RunBroadcast {
+public class RunBroadcast implements StressService {
   private static Integer startNum = 0;
   private static Integer endNum = null;
   private static int maxRows;
@@ -37,6 +38,16 @@ public class RunBroadcast {
 
   @Resource
   private Broadcast broadcast;
+
+  @Override
+  public void init() {
+
+  }
+
+  @Override
+  public void start() {
+    main(null);
+  }
 
   public static void main(String[] args) {
     logger.info("Full node running.");
