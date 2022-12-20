@@ -35,6 +35,13 @@ public class RunBroadcast implements StressService {
   private static Integer endNum = null;
   private static int maxRows;
   private static int maxTime;
+  private static String[] args;
+
+  public RunBroadcast() {}
+
+  public RunBroadcast(String[] args) {
+    this.args = args;
+  }
 
   @Resource
   private Broadcast broadcast;
@@ -46,7 +53,8 @@ public class RunBroadcast implements StressService {
 
   @Override
   public void start() {
-    main(null);
+    logger.info("RunBroadcast");
+    main(args);
   }
 
   // for test
