@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.stress.StressService;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,7 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class SendTx {
+public class SendTx implements StressService {
 
   private ExecutorService broadcastExecutorService;
   private ScheduledExecutorService scheduledExecutorService;
@@ -43,6 +44,8 @@ public class SendTx {
   private static Integer endNum = null;
   private BlockingQueue<Transaction> transactionQueue = new LinkedBlockingQueue<>();
   static Random random = new Random();
+
+  public SendTx(){}
 
   public SendTx(String[] fullNodes, int broadcastThreadNum) {
     initExecutors(broadcastThreadNum);
@@ -202,7 +205,7 @@ public class SendTx {
     logger.info("[Final] send tx end");
   }
 
-  public static void init() {
+  public void init() {
     String fullNodesParam = System.getProperty("fullNodes");
     if (StringUtils.isNoneEmpty(fullNodesParam)) {
       fullNodes = fullNodesParam.split(";");
@@ -266,7 +269,7 @@ public class SendTx {
             Arrays.toString(fullNodes), broadcastThreadNum, filePath, batchNum, maxTime, maxRows, isScheduled, startNum, endNum);
   }
 
-  public static void start() {
+  public void start() {
     init();
     SendTx sendTx = new SendTx(fullNodes, broadcastThreadNum);
     int isMultiFile = filePath.indexOf(";");
