@@ -49,6 +49,7 @@ public class RunBroadcast implements StressService {
     main(null);
   }
 
+  // for test
   public static void main(String[] args) {
     logger.info("Full node running.");
     Args.setParam(args, Constant.TESTNET_CONF);
