@@ -16,7 +16,7 @@ import java.io.InputStreamReader;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * SplitTransaction
+ * Split transaction
  *
  * @author liukai
  * @since 2022/10/26.
@@ -139,8 +139,6 @@ public class SplitTransaction {
       logger.error("split exception, count: {}, message: {}", count, e.getMessage(), e);
     }
   }
-
-
 
   public static void flush(FileWriter fileWriter) {
     try {

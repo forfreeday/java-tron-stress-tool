@@ -38,6 +38,7 @@ public class GenerateTransaction {
   // for test
   private static String writePath = "/Users/liukai/workspaces/temp/test.txt";
 
+  // for test
   public static void main(String[] args) {
     initParam();
     initTask();

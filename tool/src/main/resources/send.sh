@@ -1,7 +1,7 @@
 #!/bin/bash
 
 fullNodes='10.40.100.118:50051;10.40.100.117:50051'
-thread=4
+thread=16
 trxFilePath=''
 qps=100
 # 最大发送条数
