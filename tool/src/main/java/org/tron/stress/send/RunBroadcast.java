@@ -92,7 +92,7 @@ public class RunBroadcast implements StressService {
     // 初始化测试相关服务
     Broadcast bean = context.getBean(Broadcast.class);
     bean.init();
-    String path = "/data/test/";
+    String path = "/data/workspace/replay_workspace/data/2022-12-19_46873128/getTransactions.txt_46873128_57600";
     new RunBroadcast().readTxAndSend(path);
   }
 
