@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.tron.stress.collection.CollectionsTransaction;
 import org.tron.stress.generate.GenerateTransaction;
+import org.tron.stress.send.RunBroadcast;
 import org.tron.stress.send.SendTx;
 import org.tron.stress.split.SplitTransaction;
 
@@ -29,7 +30,7 @@ public class Stress {
       } else if (typeParam.equals("split")) {
         SplitTransaction.start();
       } else if (typeParam.equals("broadcast")) {
-        SplitTransaction.start();
+        new RunBroadcast().start();
       } else if (typeParam.equals("init")) {
 
       }
