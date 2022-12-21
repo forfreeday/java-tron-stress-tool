@@ -62,6 +62,7 @@ public class Broadcast {
    * 需要在程序启动时，进行初始化
    */
   public void init() {
+    logger.info("init broatcast");
     isBroadcast = true;
     checkAndStart();
   }

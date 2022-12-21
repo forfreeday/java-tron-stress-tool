@@ -113,26 +113,27 @@ public class RunBroadcast implements StressService {
       int currentLineNumber=0;
       String line = reader.readLine();
       while (line != null) {
-        if (startNum != null && startNum > 0) {
-          if (currentLineNumber <= startNum) {
-            // skip line
-            line = reader.readLine();
-            currentLineNumber++;
-            logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, currentLineNumber);
-            continue;
-          }
-        }
-        if (endNum != null && endNum > 0) {
-          if (currentLineNumber >= endNum) {
-            logger.info("end of reading, endNum: {}", endNum);
-            System.exit(0);
-          }
-        }
-        count += 1;
-        if (count > maxRows) {
-          logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
-          break;
-        }
+//        if (startNum != null && startNum > 0) {
+//          if (currentLineNumber <= startNum) {
+//            // skip line
+//            line = reader.readLine();
+//            currentLineNumber++;
+//            logger.info("skip transaction, startNum:{}, concurrent num: {}", startNum, currentLineNumber);
+//            continue;
+//          }
+//        }
+//        if (endNum != null && endNum > 0) {
+//          if (currentLineNumber >= endNum) {
+//            logger.info("end of reading, endNum: {}", endNum);
+//            System.exit(0);
+//          }
+//        }
+//        count += 1;
+//        if (count > maxRows) {
+//          logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
+//          break;
+//        }
+        logger.info("-------readLint: {}", reader.readLine());
         line = reader.readLine();
         Protocol.Transaction transaction = Protocol.Transaction.parseFrom(Hex.decode(line));
         broadcast.broadcast(new TransactionMessage(transaction));
