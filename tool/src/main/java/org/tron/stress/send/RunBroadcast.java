@@ -131,7 +131,7 @@ public class RunBroadcast implements StressService {
 //          logger.info("maximum number of sends reached, exit execution, maxRows: {}", maxRows);
 //          break;
 //        }
-        logger.info("-------readLint: {}", reader.readLine());
+        //logger.info("-------readLint: {}", reader.readLine());
         line = reader.readLine();
         Protocol.Transaction transaction = Protocol.Transaction.parseFrom(Hex.decode(line));
         broadcast.broadcast(new TransactionMessage(transaction));

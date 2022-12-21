@@ -80,7 +80,7 @@ public class Broadcast {
   // 广播由 broadcast 方法构建的交易
   private void consumerAdvToSpread() {
     // for test
-    TPS = 200;
+    TPS = 3000;
     long starTime = System.currentTimeMillis();
     if (advObjToSpread.isEmpty()) {
       return;
@@ -102,7 +102,14 @@ public class Broadcast {
       }
     }
 
+    int n = 0;
     while (advObjToSpread.size() > 0 && syncPool.getActivePeers().size() > 0) {
+      logger.info("SPREAD {} advObjToSpread:{} spreadSize: {}", ++n, advObjToSpread.size(), spread.size());
+
+      if(spread.size() <= 0) {
+        break;
+      }
+
       InvSender sendPackage = new InvSender();
       // 把数据导从 spread 导到真正要发送的 sendPackage 当中的队列
       spread.entrySet().forEach(id -> {
