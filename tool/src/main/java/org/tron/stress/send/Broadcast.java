@@ -13,6 +13,7 @@ import org.tron.core.net.message.BlockMessage;
 import org.tron.core.net.message.InventoryMessage;
 import org.tron.core.net.message.TransactionMessage;
 import org.tron.core.net.peer.PeerConnection;
+import org.tron.program.FullNode;
 import org.tron.protos.Protocol.Inventory.InventoryType;
 
 import java.util.Comparator;
@@ -38,6 +39,7 @@ public class Broadcast {
   private boolean isBroadcast;
   private static int TPS = 100;
   private AtomicLong count = new AtomicLong(0);
+  private boolean exitAble = false;
 
   @Autowired
   private SyncPool syncPool;
@@ -106,8 +108,21 @@ public class Broadcast {
     while (advObjToSpread.size() > 0 && syncPool.getActivePeers().size() > 0) {
       logger.info("SPREAD {} advObjToSpread:{} spreadSize: {}", ++n, advObjToSpread.size(), spread.size());
 
-      if(spread.size() <= 0) {
+      if (spread.size() <= 0) {
         break;
+      }
+
+      // 数据量达到 5倍TPS，可以设置退出开关 exitAble = true;
+      if (advObjToSpread.size() > 5 * TPS) {
+        exitAble = true;
+      }
+
+      // 小于指定 阈值则退出
+      if (advObjToSpread.size() < TPS * 3 && exitAble) {
+        logger.info("advObjToSpread {} TPS:{}", advObjToSpread.size(), TPS);
+        logger.info("Transaction total count: {}", 500000000);
+        logger.info("Stress task end.");
+        System.exit(0);
       }
 
       InvSender sendPackage = new InvSender();
@@ -115,7 +130,8 @@ public class Broadcast {
       spread.entrySet().forEach(id -> {
         syncPool.getActivePeers().stream()
                 .filter(peer -> sendPackage.getSize(peer) < 1000)
-                .min(Comparator.comparingInt(sendPackage::getSize))
+                .sorted(Comparator.comparingInt(sendPackage::getSize))
+                .findFirst()
                 .ifPresent(peerConnection -> {
                   sendPackage.add(id, peerConnection);
                   spread.remove(id.getKey());
@@ -126,7 +142,7 @@ public class Broadcast {
     }
     long cost = System.currentTimeMillis() - starTime;
     logger.info("SPREAD finish one spread cost: {}ms", cost);
-    if (cost < 1000){
+    if (cost < 1000) {
       try {
         Thread.sleep(1000 - cost);
       } catch (Exception e) {
@@ -137,7 +153,7 @@ public class Broadcast {
 
   /**
    * 收集交易
-   *  广播在易在: consumerAdvToSpread 方法中
+   * 广播在易在: consumerAdvToSpread 方法中
    *
    * @param msg 构造的交易
    */
@@ -163,7 +179,7 @@ public class Broadcast {
 
     synchronized (advObjToSpread) {
       advObjToSpread.put(msg.getMessageId(), type);
-      if(advObjToSpread.size() % 100 == 0) {
+      if (advObjToSpread.size() % 100 == 0) {
         logger.info("advObjToSpread size " + advObjToSpread.size());
       }
     }
@@ -192,8 +208,8 @@ public class Broadcast {
 
     // 发送数据
     public void sendInv() {
-      send.forEach((peer, ids)-> {
-        ids.forEach((key, value)-> {
+      send.forEach((peer, ids) -> {
+        ids.forEach((key, value) -> {
           if (key.equals(InventoryType.BLOCK)) {
             value.sort(Comparator.comparingLong(value1 -> new BlockCapsule.BlockId(value1).getNum()));
           }
