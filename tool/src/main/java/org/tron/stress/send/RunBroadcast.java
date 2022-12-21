@@ -43,9 +43,6 @@ public class RunBroadcast implements StressService {
     RunBroadcast.args = args;
   }
 
-  @Resource
-  private Broadcast broadcast;
-
   @Override
   public void init() {
 
@@ -101,10 +98,11 @@ public class RunBroadcast implements StressService {
     Broadcast bean = context.getBean(Broadcast.class);
     bean.init();
     String path = "/data/workspace/replay_workspace/data/2022-12-19_46873128/getTransactions.txt_46873128_57600";
-    new RunBroadcast().readTxAndSend(path);
+    Broadcast broadcast = context.getBean(Broadcast.class);
+    new RunBroadcast().readTxAndSend(path, broadcast);
   }
 
-  private void readTxAndSend(String path) {
+  private void readTxAndSend(String path, Broadcast broadcast) {
     logger.info("[Begin] send tx");
     try (BufferedReader reader = new BufferedReader(
             new InputStreamReader(new FileInputStream(new File(path))))) {
