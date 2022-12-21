@@ -30,7 +30,7 @@ public class Stress {
       } else if (typeParam.equals("split")) {
         SplitTransaction.start();
       } else if (typeParam.equals("broadcast")) {
-        new RunBroadcast().start();
+        new RunBroadcast(args).start();
       } else if (typeParam.equals("init")) {
 
       }

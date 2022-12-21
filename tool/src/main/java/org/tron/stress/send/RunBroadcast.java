@@ -40,7 +40,7 @@ public class RunBroadcast implements StressService {
   public RunBroadcast() {}
 
   public RunBroadcast(String[] args) {
-    this.args = args;
+    RunBroadcast.args = args;
   }
 
   @Resource
@@ -54,7 +54,7 @@ public class RunBroadcast implements StressService {
   @Override
   public void start() {
     logger.info("RunBroadcast");
-    main(RunBroadcast.args);
+    main(args);
   }
 
   // for test
